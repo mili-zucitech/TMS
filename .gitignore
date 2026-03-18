@@ -1,0 +1,50 @@
+# ── OS & Editor ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+.idea/
+*.iml
+.vscode/settings.json
+.vscode/launch.json
+
+# ── Frontend (Vite / React / Node) ───────────────────────────────────────────
+tms-frontend/node_modules/
+tms-frontend/dist/
+tms-frontend/.env
+tms-frontend/.env.local
+tms-frontend/.env.*.local
+tms-frontend/.cache/
+
+# ── Backend (Maven / Spring Boot) ────────────────────────────────────────────
+tms-backend/target/
+tms-backend/.mvn/wrapper/maven-wrapper.jar
+tms-backend/*.log
+tms-backend/logs/
+
+# ──  Secrets / env files (anywhere in project) ───────────────────────────────
+*.env
+*.env.local
+application-local.yml
+application-local.properties
+application-prod.yml
+application-prod.properties
+secrets.yml
+secrets.properties
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Test / Coverage output ────────────────────────────────────────────────────
+coverage/
+.nyc_output/
+tms-frontend/coverage/
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+*.jar
+!tms-backend/mvnw

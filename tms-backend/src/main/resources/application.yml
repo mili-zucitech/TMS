@@ -1,0 +1,73 @@
+spring:
+  application:
+    name: tms-backend
+
+  datasource:
+    url: jdbc:mysql://localhost:3306/tms?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: root
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  # Mail Configuration
+  # Override these values via environment variables or a profile-specific application-{profile}.yml
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: milisrivastava.zucitech@gmail.com
+    password: gffjrpybyuuqutpe
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+
+server:
+  port: 8080
+
+# JWT Configuration
+# WARNING: Replace jwt.secret with a securely generated Base64-encoded key before deploying to production.
+# Generate with: openssl rand -base64 64
+jwt:
+  secret: dG1zLWp3dC1zZWNyZXQta2V5LXZlcnktc2VjdXJlLW1pbi0zMi1jaGFycw==
+  expiration: 86400000  # 24 hours in milliseconds
+
+# CORS Configuration
+cors:
+  allowed-origins:
+    - http://localhost:5173
+    - http://localhost:3000
+
+# Async thread pool
+async:
+  core-pool-size: 4
+  max-pool-size: 10
+  queue-capacity: 500
+
+logging:
+  level:
+    com.company.tms: INFO
+    org.springframework.security: WARN
+
