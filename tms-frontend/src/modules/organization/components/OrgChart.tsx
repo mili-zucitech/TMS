@@ -1,9 +1,11 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
+  Handle,
   MiniMap,
+  Position,
   addEdge,
   useEdgesState,
   useNodesState,
@@ -83,7 +85,7 @@ function buildGraph(
       source: 'root',
       target: deptId,
       type: 'smoothstep',
-      style: { stroke: 'hsl(var(--border))', strokeWidth: 1.5 },
+      style: { stroke: 'rgb(52 211 153)', strokeWidth: 2 },
     })
 
     if (!isCollapsed) {
@@ -102,7 +104,7 @@ function buildGraph(
           source: deptId,
           target: empId,
           type: 'smoothstep',
-          style: { stroke: 'hsl(var(--border))', strokeWidth: 1.5 },
+          style: { stroke: 'rgb(52 211 153)', strokeWidth: 2 },
         })
       })
     }
@@ -124,8 +126,7 @@ function RootNode({ data }: { data: { totalDepts: number; totalEmps: number } })
           {data.totalDepts} dept{data.totalDepts !== 1 ? 's' : ''} · {data.totalEmps} employee{data.totalEmps !== 1 ? 's' : ''}
         </p>
       </div>
-      {/* source handle */}
-      <div style={{ position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)', width: 8, height: 8, borderRadius: '50%', background: 'rgb(52 211 153)' }} />
+      <Handle type="source" position={Position.Bottom} className="!bg-emerald-400 !border-0 !w-2 !h-2" />
     </>
   )
 }
@@ -143,6 +144,43 @@ const NODE_TYPES = {
 function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
   const { fitView } = useReactFlow()
   const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Boost pinch-zoom speed by intercepting ctrlKey+wheel before d3-zoom handles it,
+  // then re-dispatching a boosted synthetic event to d3's own element so its internal
+  // transform stays in sync (fixes zoom resetting when panning after zooming).
+  const PINCH_SPEED = 3.5
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    let dispatching = false
+    const handler = (e: WheelEvent) => {
+      if (dispatching || !e.ctrlKey) return
+      e.preventDefault()
+      e.stopImmediatePropagation()
+      const renderer = el.querySelector<HTMLElement>('.react-flow__renderer')
+      if (!renderer) return
+      dispatching = true
+      renderer.dispatchEvent(
+        new WheelEvent('wheel', {
+          deltaX: e.deltaX,
+          deltaY: e.deltaY * PINCH_SPEED,
+          deltaZ: e.deltaZ,
+          deltaMode: e.deltaMode,
+          ctrlKey: true,
+          clientX: e.clientX,
+          clientY: e.clientY,
+          screenX: e.screenX,
+          screenY: e.screenY,
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+      dispatching = false
+    }
+    el.addEventListener('wheel', handler, { passive: false, capture: true })
+    return () => el.removeEventListener('wheel', handler, { capture: true })
+  }, [])
 
   const handleToggle = useCallback((nodeId: string, newCollapsed: boolean) => {
     const deptId = parseInt(nodeId.replace('dept-', ''), 10)
@@ -172,6 +210,7 @@ function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
   )
 
   return (
+    <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
     <ReactFlow
       nodes={latestNodes}
       edges={latestEdges}
@@ -183,10 +222,12 @@ function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
       fitViewOptions={{ padding: 0.15, duration: 600 }}
       minZoom={0.4}
       maxZoom={2.0}
-      zoomOnScroll
+      zoomOnScroll={false}
       zoomOnPinch
       panOnDrag
-      panOnScroll={false}
+      panOnScroll
+      panOnScrollMode="free"
+      panOnScrollSpeed={1.5}
       proOptions={{ hideAttribution: true }}
       className="rounded-xl"
     >
@@ -211,6 +252,7 @@ function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
         className="!bg-card !border !border-border !rounded-xl !shadow-sm"
       />
     </ReactFlow>
+    </div>
   )
 }
 
@@ -225,7 +267,7 @@ interface OrgChartProps {
 export function OrgChart({ departments }: OrgChartProps) {
   return (
     <ReactFlowProvider>
-      <div style={{ width: '100%', height: 700 }}>
+      <div style={{ width: '100%', height: '100%' }}>
         <FlowInner departments={departments} />
       </div>
     </ReactFlowProvider>

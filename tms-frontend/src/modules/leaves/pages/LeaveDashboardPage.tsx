@@ -19,18 +19,9 @@ import { LeaveCalendar } from '../components/LeaveCalendar'
 import { ApplyLeaveModal } from '../components/ApplyLeaveModal'
 import { LeaveDetailsDrawer } from '../components/LeaveDetailsDrawer'
 import type { LeaveRequestResponse } from '../types/leave.types'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 type ViewMode = 'table' | 'calendar'
-
-function useIsMobile() {
-  const [v, set] = useState(() => window.innerWidth < 768)
-  useEffect(() => {
-    const h = () => set(window.innerWidth < 768)
-    window.addEventListener('resize', h)
-    return () => window.removeEventListener('resize', h)
-  }, [])
-  return v
-}
 
 export function LeaveDashboardPage() {
   const { user } = useAuth()

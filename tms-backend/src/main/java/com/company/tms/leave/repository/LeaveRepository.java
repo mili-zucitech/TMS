@@ -19,6 +19,8 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
 
     List<Leave> findByUserIdIn(Collection<UUID> userIds);
 
+    List<Leave> findByUserIdInAndStatus(Collection<UUID> userIds, LeaveStatus status);
+
     List<Leave> findByUserIdAndStatus(UUID userId, LeaveStatus status);
 
     List<Leave> findByStatus(LeaveStatus status);

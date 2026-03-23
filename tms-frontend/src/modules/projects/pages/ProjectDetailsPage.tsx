@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -78,11 +78,8 @@ export default function ProjectDetailsPage() {
   const [error, setError] = useState<string | null>(null)
   const [editOpen, setEditOpen] = useState(false)
 
-  // Resolve the logged-in user's UUID once allUsers is loaded
-  const currentUserId = useMemo(
-    () => allUsers.find((u) => u.email === authUser?.email)?.id,
-    [allUsers, authUser?.email],
-  )
+  // Resolve the logged-in user's UUID directly from the JWT
+  const currentUserId = authUser?.userId
 
   // Role-based access
   const isOwningManager =

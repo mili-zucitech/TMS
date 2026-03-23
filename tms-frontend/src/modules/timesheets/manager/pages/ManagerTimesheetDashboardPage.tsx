@@ -19,37 +19,13 @@ import { useManagerDashboard } from '../hooks/useManagerTimesheets'
 import {
   formatMediumDate,
 } from '../../utils/timesheetHelpers'
+import { StatCard } from '@/components/ui/StatCard'
 import type { ManagerTimesheetRow } from '../types/managerTimesheet.types'
 
 const selectClass =
   'flex h-9 rounded-lg border border-input bg-background px-3 py-1.5 text-sm ' +
   'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
   'focus:ring-offset-1 transition-colors'
-
-// ────────────────────────────────────────────────────────────────────────────
-// Stat card
-// ────────────────────────────────────────────────────────────────────────────
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ElementType
-  label: string
-  value: string | number
-}) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 shadow-sm flex items-center gap-4">
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
-        <Icon className="h-5 w-5 text-white" />
-      </div>
-      <div>
-        <p className="text-sm text-muted-foreground">{label}</p>
-        <p className="text-2xl font-bold">{value}</p>
-      </div>
-    </div>
-  )
-}
 
 // ────────────────────────────────────────────────────────────────────────────
 // Mobile card for small screens

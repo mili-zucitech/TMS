@@ -36,7 +36,7 @@ export default function UserListPage() {
 
   // Role-based access: ADMIN and HR can create/edit/deactivate
   const canModify =
-    authUser?.roleName === 'ADMIN' || authUser?.roleName === 'HR'
+    authUser?.roleName === 'ADMIN' || authUser?.roleName === 'HR' || authUser?.roleName === 'HR_MANAGER'
   // Only ADMIN can deactivate
   const canDeactivate = authUser?.roleName === 'ADMIN'
 

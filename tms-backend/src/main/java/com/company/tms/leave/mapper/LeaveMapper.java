@@ -28,13 +28,14 @@ public interface LeaveMapper {
     // -------------------------------------------------------------------------
 
     @Mapping(target = "leaveTypeName", ignore = true)
+    @Mapping(target = "employeeName", ignore = true)
     LeaveRequestResponse toLeaveRequestResponse(Leave leave);
 
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "totalDays", ignore = true)
     @Mapping(target = "status", ignore = true)
     @Mapping(target = "appliedAt", ignore = true)
-    @Mapping(target = "approvedAt", ignore = true)
+    @Mapping(target = "approvedAt", ignore = true) 
     @Mapping(target = "approvedBy", ignore = true)
     @Mapping(target = "rejectionReason", ignore = true)
     Leave toLeaveEntity(LeaveRequestCreateRequest request);

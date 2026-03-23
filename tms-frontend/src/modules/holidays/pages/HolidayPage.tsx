@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CalendarCheck, LayoutGrid, List, Plus, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -13,19 +13,7 @@ import { HolidayCreateModal } from '../components/HolidayCreateModal'
 import { HolidayEditModal } from '../components/HolidayEditModal'
 import type { HolidayCreateRequest, HolidayResponse, HolidayUpdateRequest, HolidayViewMode } from '../types/holiday.types'
 import { HOLIDAY_ADMIN_ROLES } from '../components/holidayConfig'
-
-// ── Responsive breakpoint hook ────────────────────────────────
-import { useEffect } from 'react'
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
-  }, [])
-  return isMobile
-}
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 // ── Page ─────────────────────────────────────────────────────
 

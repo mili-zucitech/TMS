@@ -97,7 +97,7 @@ const reportService = {
   async getLeaveReport(filters: ReportFilters = {}): Promise<LeaveReport> {
     // The leave endpoint returns raw leave requests; adapt to report shape
     const { data } = await axiosClient.get<ApiResponse<LeaveReport>>(
-      `/leave${toQuery(filters)}`,
+      `/leaves${toQuery(filters)}`,
     )
     // If backend wraps leave requests, we compose the report client-side
     const raw = data.data as unknown as {
@@ -113,11 +113,11 @@ const reportService = {
     if (Array.isArray(raw)) {
       const entries = raw.map((r) => ({
         userId: r.userId,
-        employeeName: r.employeeName ?? r.userId,
+        employeeName: r.employeeName ?? String(r.userId),
         department: '',
-        leaveType: r.leaveTypeName,
-        totalDays: r.totalDays,
-        status: r.status,
+        leaveType: r.leaveTypeName ?? 'Unknown',
+        totalDays: r.totalDays ?? 0,
+        status: r.status ?? 'UNKNOWN',
         startDate: r.startDate,
         endDate: r.endDate,
       }))

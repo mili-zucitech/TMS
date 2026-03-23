@@ -4,13 +4,11 @@ import {
   Clock,
   CalendarOff,
   Building2,
-  DollarSign,
-  TrendingUp,
   RefreshCw,
   UserCheck,
   Activity,
-  BarChart2,
   ShieldCheck,
+  TrendingUp,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -19,42 +17,36 @@ import { ReportFilters } from '../components/ReportFilters'
 import { ReportTable, statusBadge, type Column } from '../components/ReportTable'
 import { ReportBarChart, ReportPieChart, ReportLineChart } from '../components/ReportCharts'
 import { ExportButtons } from '../components/ExportButtons'
+import { TrendInsights } from '../components/TrendInsights'
 import {
   useEmployeeHoursReport,
   useLeaveReport,
   useDepartmentProductivityReport,
-  useBillableHoursReport,
 } from '../hooks/useReports'
 import type {
   EmployeeHoursEntry,
   LeaveReportEntry,
   DepartmentProductivityEntry,
-  BillableHoursEntry,
   ReportFilters as Filters,
 } from '../types/report.types'
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'overview',     label: 'Overview' },
-  { id: 'work-hours',   label: 'Work Hours' },
-  { id: 'leave',        label: 'Leave Analytics' },
-  { id: 'departments',  label: 'Departments' },
-  { id: 'billable',     label: 'Billable Hours' },
+  { id: 'overview',    label: 'Overview' },
+  { id: 'work-hours',  label: 'Work Hours' },
+  { id: 'leave',       label: 'Leave Analytics' },
+  { id: 'departments', label: 'Departments' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
 
 // ── Column definitions ────────────────────────────────────────────────────────
 const workHoursCols: Column<EmployeeHoursEntry>[] = [
-  { key: 'employeeName',     header: 'Employee',          sortable: true },
-  { key: 'department',       header: 'Department',        sortable: true },
-  { key: 'totalHours',       header: 'Total hrs',         sortable: true, align: 'right',
+  { key: 'employeeName',  header: 'Employee',   sortable: true },
+  { key: 'department',    header: 'Department', sortable: true },
+  { key: 'totalHours',    header: 'Total hrs',  sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'billableHours',    header: 'Billable hrs',      sortable: true, align: 'right',
-    render: (v) => <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'nonBillableHours', header: 'Non-billable hrs',  align: 'right',
-    render: (v) => <span className="font-mono text-amber-600 dark:text-amber-400">{Number(v).toFixed(1)}</span> },
-  { key: 'weekStartDate',    header: 'Week of',           sortable: true },
+  { key: 'weekStartDate', header: 'Week of',    sortable: true },
 ]
 
 const leaveCols: Column<LeaveReportEntry>[] = [
@@ -69,13 +61,11 @@ const leaveCols: Column<LeaveReportEntry>[] = [
 ]
 
 const deptCols: Column<DepartmentProductivityEntry>[] = [
-  { key: 'departmentName',       header: 'Department',       sortable: true },
-  { key: 'employeeCount',        header: 'Employees',        sortable: true, align: 'right' },
-  { key: 'totalHours',           header: 'Total hrs',        sortable: true, align: 'right',
+  { key: 'departmentName',      header: 'Department',       sortable: true },
+  { key: 'employeeCount',       header: 'Employees',        sortable: true, align: 'right' },
+  { key: 'totalHours',          header: 'Total hrs',        sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'billableHours',        header: 'Billable hrs',     sortable: true, align: 'right',
-    render: (v) => <span className="font-mono text-emerald-600 dark:text-emerald-400">{Number(v).toFixed(1)}</span> },
-  { key: 'avgHoursPerEmployee',  header: 'Avg hrs/employee', sortable: true, align: 'right',
+  { key: 'avgHoursPerEmployee', header: 'Avg hrs/employee', sortable: true, align: 'right',
     render: (v) => <span className="font-mono">{Number(v).toFixed(1)}</span> },
   { key: 'utilizationPercent',   header: 'Utilization',      sortable: true, align: 'right',
     render: (v) => (
@@ -88,49 +78,27 @@ const deptCols: Column<DepartmentProductivityEntry>[] = [
     ) },
 ]
 
-const billableCols: Column<BillableHoursEntry>[] = [
-  { key: 'employeeName',    header: 'Employee',     sortable: true },
-  { key: 'department',      header: 'Department',   sortable: true },
-  { key: 'projectName',     header: 'Project',      sortable: true },
-  { key: 'totalHours',      header: 'Total hrs',    sortable: true, align: 'right',
-    render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'billableHours',   header: 'Billable',     sortable: true, align: 'right',
-    render: (v) => <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'billablePercent', header: 'Billable %',   sortable: true, align: 'right',
-    render: (v) => (
-      <div className="flex items-center justify-end gap-2">
-        <div className="h-1.5 w-14 overflow-hidden rounded-full bg-muted">
-          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(Number(v), 100)}%` }} />
-        </div>
-        <span className="font-mono text-xs">{Number(v)}%</span>
-      </div>
-    ) },
-]
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function HRManagerReportsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
 
-  const hours    = useEmployeeHoursReport()
-  const leave    = useLeaveReport()
-  const dept     = useDepartmentProductivityReport()
-  const billable = useBillableHoursReport()
+  const hours = useEmployeeHoursReport()
+  const leave = useLeaveReport()
+  const dept  = useDepartmentProductivityReport()
 
-  const isLoading = hours.isLoading || leave.isLoading || dept.isLoading || billable.isLoading
-  const error     = hours.error ?? leave.error ?? dept.error ?? billable.error ?? null
+  const isLoading = hours.isLoading || leave.isLoading || dept.isLoading
+  const error     = hours.error ?? leave.error ?? dept.error ?? null
 
   const applyFilters = (f: Filters) => {
     hours.applyFilters(f)
     leave.applyFilters(f)
     dept.applyFilters(f)
-    billable.applyFilters(f)
   }
 
   const refresh = () => {
     hours.refresh()
     leave.refresh()
     dept.refresh()
-    billable.refresh()
   }
 
   // ── Chart data ────────────────────────────────────────────────────────────
@@ -161,52 +129,56 @@ export default function HRManagerReportsPage() {
       .map(([name, value]) => ({ name, value }))
   }, [hours.data])
 
+  const empHoursBar = useMemo(() => {
+    if (!hours.data) return []
+    const map = new Map<string, number>()
+    for (const e of hours.data.entries) {
+      map.set(e.employeeName, (map.get(e.employeeName) ?? 0) + e.totalHours)
+    }
+    return Array.from(map.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 15)
+      .map(([name, value]) => ({ name, value }))
+  }, [hours.data])
+
   const deptHoursBar = useMemo(() => {
     if (!dept.data) return []
-    return dept.data.map((d) => ({
-      name: d.departmentName,
-      billable: d.billableHours,
-      nonBillable: d.totalHours - d.billableHours,
-    }))
+    return dept.data
+      .map((d) => ({ name: d.departmentName, value: d.totalHours }))
+      .sort((a, b) => b.value - a.value)
   }, [dept.data])
 
-  const billablePie = useMemo(() => {
-    if (!billable.data) return []
-    return [
-      { name: 'Billable',     value: billable.data.totalBillableHours },
-      { name: 'Non-Billable', value: billable.data.totalNonBillableHours },
-    ]
-  }, [billable.data])
-
-  const utilizationRate = billable.data
-    ? Math.round((billable.data.totalBillableHours / (billable.data.totalHours || 1)) * 100)
-    : 0
+  const deptUtilBar = useMemo(() => {
+    if (!dept.data) return []
+    return dept.data
+      .map((d) => ({ name: d.departmentName, value: d.utilizationPercent }))
+      .sort((a, b) => b.value - a.value)
+  }, [dept.data])
 
   // Active export data per tab
   const exportData = useMemo(() => {
     switch (activeTab) {
-      case 'work-hours':   return hours.data?.entries    ?? []
-      case 'leave':        return leave.data?.entries    ?? []
-      case 'departments':  return dept.data              ?? []
-      case 'billable':     return billable.data?.entries ?? []
-      default:             return hours.data?.entries    ?? []
+      case 'work-hours':  return hours.data?.entries ?? []
+      case 'leave':       return leave.data?.entries ?? []
+      case 'departments': return dept.data           ?? []
+      default:            return hours.data?.entries ?? []
     }
-  }, [activeTab, hours.data, leave.data, dept.data, billable.data])
+  }, [activeTab, hours.data, leave.data, dept.data])
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 px-4 py-5 sm:px-6">
       {/* ── Page Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold tracking-tight">HR Manager Reports</h1>
+            <h1 className="text-xl font-bold tracking-tight">HR Manager Reports</h1>
             <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/10 px-2.5 py-0.5 text-xs font-semibold text-violet-700 dark:text-violet-400">
               <ShieldCheck className="h-3 w-3" />
               HR Manager
             </span>
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Full operational visibility — employees, leave, departments, and billable tracking
+            Full operational visibility — employees, leave, and department productivity
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -256,28 +228,6 @@ export default function HRManagerReportsPage() {
         />
       </div>
 
-      {/* ── KPI Cards (row 2) ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <ReportCard
-          title="Billable Hours"
-          value={billable.data ? `${billable.data.totalBillableHours.toFixed(0)}h` : '—'}
-          icon={DollarSign}
-          iconColor="from-green-500 to-emerald-600"
-        />
-        <ReportCard
-          title="Utilization Rate"
-          value={`${utilizationRate}%`}
-          icon={TrendingUp}
-          iconColor="from-sky-500 to-cyan-600"
-        />
-        <ReportCard
-          title="Pending Leaves"
-          value={leave.data?.totalPending ?? '—'}
-          icon={UserCheck}
-          iconColor="from-rose-500 to-pink-600"
-        />
-      </div>
-
       {/* ── Tabs ────────────────────────────────────────────────────────────── */}
       <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-muted/30 p-1 w-fit">
         {TABS.map((tab) => (
@@ -313,7 +263,13 @@ export default function HRManagerReportsPage() {
 
       {/* ── Overview tab ─────────────────────────────────────────────────────── */}
       {!isLoading && activeTab === 'overview' && (
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="space-y-4">
+          <TrendInsights
+            hours={hours.data}
+            leave={leave.data}
+            title="HR Manager Trend Insights"
+          />
+          <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -356,37 +312,6 @@ export default function HRManagerReportsPage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-violet-500" />
-                Department Hours Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ReportBarChart
-                data={deptHoursBar}
-                bars={[
-                  { key: 'billable',    label: 'Billable',     color: '#10b981' },
-                  { key: 'nonBillable', label: 'Non-Billable', color: '#f59e0b' },
-                ]}
-                stacked
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <BarChart2 className="h-4 w-4 text-sky-500" />
-                Billable vs Non-Billable (Org-wide)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ReportPieChart data={billablePie} />
-            </CardContent>
-          </Card>
-
           {/* Leave status summary */}
           <Card>
             <CardHeader className="pb-2">
@@ -406,33 +331,50 @@ export default function HRManagerReportsPage() {
               />
             </CardContent>
           </Card>
+          </div>
         </div>
       )}
 
       {/* ── Work Hours tab ────────────────────────────────────────────────────── */}
       {!isLoading && activeTab === 'work-hours' && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Clock className="h-4 w-4 text-emerald-500" />
-              Employee Work Hours
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ReportTable
-              data={hours.data?.entries ?? []}
-              columns={workHoursCols}
-              searchable
-              searchKeys={['employeeName', 'department']}
-              emptyMessage="No work hours data for the selected period"
-            />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-emerald-500" />
+                Top 15 Employees by Hours
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportBarChart
+                data={empHoursBar}
+                bars={[{ key: 'value', label: 'Total Hours', color: '#10b981' }]}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Clock className="h-4 w-4 text-emerald-500" />
+                Employee Work Hours
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportTable
+                data={hours.data?.entries ?? []}
+                columns={workHoursCols}
+                searchable
+                searchKeys={['employeeName', 'department']}
+                emptyMessage="No work hours data for the selected period"
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* ── Leave tab ─────────────────────────────────────────────────────────── */}
       {!isLoading && activeTab === 'leave' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           <div className="grid gap-4 sm:grid-cols-3">
             <ReportCard
               title="Approved Leaves"
@@ -452,6 +394,40 @@ export default function HRManagerReportsPage() {
               icon={CalendarOff}
               iconColor="from-red-500 to-rose-600"
             />
+          </div>
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <CalendarOff className="h-4 w-4 text-amber-500" />
+                  Leave by Type
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReportBarChart
+                  data={leaveDistBar}
+                  bars={[{ key: 'value', label: 'Days', color: '#f59e0b' }]}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-rose-500" />
+                  Leave Status Breakdown
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReportPieChart
+                  data={[
+                    { name: 'Approved', value: leave.data?.totalApproved ?? 0 },
+                    { name: 'Pending',  value: leave.data?.totalPending  ?? 0 },
+                    { name: 'Rejected', value: leave.data?.totalRejected ?? 0 },
+                  ].filter((d) => d.value > 0)}
+                  innerRadius={45}
+                />
+              </CardContent>
+            </Card>
           </div>
           <Card>
             <CardHeader className="pb-2">
@@ -475,45 +451,57 @@ export default function HRManagerReportsPage() {
 
       {/* ── Departments tab ───────────────────────────────────────────────────── */}
       {!isLoading && activeTab === 'departments' && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <Building2 className="h-4 w-4 text-violet-500" />
-              Department Productivity
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ReportTable
-              data={dept.data ?? []}
-              columns={deptCols}
-              searchable
-              searchKeys={['departmentName']}
-              emptyMessage="No department data available"
-            />
-          </CardContent>
-        </Card>
+        <div className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-blue-500" />
+                  Total Hours by Department
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReportBarChart
+                  data={deptHoursBar}
+                  bars={[{ key: 'value', label: 'Total Hours', color: '#3b82f6' }]}
+                />
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  Utilization % by Department
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ReportBarChart
+                  data={deptUtilBar}
+                  bars={[{ key: 'value', label: 'Utilization %', color: '#10b981' }]}
+                />
+              </CardContent>
+            </Card>
+          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-violet-500" />
+                Department Productivity
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportTable
+                data={dept.data ?? []}
+                columns={deptCols}
+                searchable
+                searchKeys={['departmentName']}
+                emptyMessage="No department data available"
+              />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
-      {/* ── Billable tab ──────────────────────────────────────────────────────── */}
-      {!isLoading && activeTab === 'billable' && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-emerald-500" />
-              Billable Hours by Employee &amp; Project
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ReportTable
-              data={billable.data?.entries ?? []}
-              columns={billableCols}
-              searchable
-              searchKeys={['employeeName', 'department', 'projectName']}
-              emptyMessage="No billable hours data for the selected period"
-            />
-          </CardContent>
-        </Card>
-      )}
     </div>
   )
 }

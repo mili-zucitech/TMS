@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -24,6 +25,20 @@ import java.util.UUID;
 public class LeaveController {
 
     private final LeaveService leaveService;
+
+    /**
+     * Returns all leave requests (HR / Admin reports endpoint).
+     * Optionally filtered by status.
+     */
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'DIRECTOR', 'MANAGER', 'EMPLOYEE')")
+    public ResponseEntity<ApiResponse<List<LeaveRequestResponse>>> getAllLeaveRequests(
+            Authentication auth,
+            @RequestParam(required = false) String status) {
+        log.debug("GET /api/v1/leaves?status={}", status);
+        return ResponseEntity.ok(ApiResponse.success(
+                leaveService.getAllLeaveRequests(auth, status), "All leave requests retrieved"));
+    }
 
     /**
      * Creates a new leave request.

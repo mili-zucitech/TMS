@@ -36,7 +36,7 @@ interface ChartWrapperProps {
   children: React.ReactNode
 }
 
-export function ChartWrapper({ height = 300, className, children }: ChartWrapperProps) {
+export function ChartWrapper({ height = 200, className, children }: ChartWrapperProps) {
   return (
     <div className={cn('w-full', className)} style={{ height }}>
       <Suspense fallback={<div className="h-full animate-pulse rounded-lg bg-muted" />}>
@@ -77,10 +77,20 @@ export function ReportBarChart({
   data,
   bars,
   xKey = 'name',
-  height = 300,
+  height = 200,
   className,
   stacked = false,
 }: ReportBarChartProps) {
+  if (!data.length) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm text-muted-foreground"
+        style={{ height }}
+      >
+        No data available
+      </div>
+    )
+  }
   return (
     <ChartWrapper height={height} className={className}>
       <BarChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
@@ -126,11 +136,21 @@ interface ReportPieChartProps {
 
 export function ReportPieChart({
   data,
-  height = 280,
+  height = 200,
   className,
-  innerRadius = 60,
+  innerRadius = 45,
   showLegend = true,
 }: ReportPieChartProps) {
+  if (!data.length) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm text-muted-foreground"
+        style={{ height }}
+      >
+        No data available
+      </div>
+    )
+  }
   return (
     <ChartWrapper height={height} className={className}>
       <PieChart>
@@ -139,7 +159,7 @@ export function ReportPieChart({
           cx="50%"
           cy="50%"
           innerRadius={innerRadius}
-          outerRadius={innerRadius + 50}
+          outerRadius={innerRadius + 40}
           paddingAngle={3}
           dataKey="value"
           nameKey="name"
@@ -168,9 +188,19 @@ export function ReportLineChart({
   data,
   lines,
   xKey = 'name',
-  height = 300,
+  height = 200,
   className,
 }: ReportLineChartProps) {
+  if (!data.length) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm text-muted-foreground"
+        style={{ height }}
+      >
+        No data available
+      </div>
+    )
+  }
   return (
     <ChartWrapper height={height} className={className}>
       <LineChart data={data} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>

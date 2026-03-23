@@ -31,7 +31,7 @@ public class OrganizationService {
 
     /** All departments with their employee lists (organisation chart view). */
     public List<OrganizationDepartmentResponse> getAllDepartmentsWithEmployees() {
-        return departmentRepository.findAll()
+        return departmentRepository.findAllWithEmployees()
                 .stream()
                 .map(this::toOrganizationResponse)
                 .collect(Collectors.toList());

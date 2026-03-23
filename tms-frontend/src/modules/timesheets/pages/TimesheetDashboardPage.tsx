@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Clock,
@@ -23,33 +23,14 @@ import {
 } from '../utils/timesheetHelpers'
 import type { TimesheetResponse } from '../types/timesheet.types'
 
-import userModuleService from '@/modules/users/services/userService'
-import type { UserResponse } from '@/modules/users/types/user.types'
 import { toast } from 'sonner'
 
 export default function TimesheetDashboardPage() {
   const navigate = useNavigate()
   const { user: authUser } = useAuth()
 
-  // ── Resolve current user UUID ─────────────────────────────────────────────
-  const [currentUser, setCurrentUser] = useState<UserResponse | null>(null)
-  const [userLoading, setUserLoading] = useState(true)
-  const userLoadedRef = useRef(false)
-
-  useEffect(() => {
-    if (userLoadedRef.current) return
-    userLoadedRef.current = true
-    userModuleService
-      .getUsers(0, 500)
-      .then((page) => {
-        const found = page.content.find((u) => u.email === authUser?.email) ?? null
-        setCurrentUser(found)
-      })
-      .catch(() => setCurrentUser(null))
-      .finally(() => setUserLoading(false))
-  }, [authUser])
-
-  const userId = currentUser?.id ?? null
+  // ── Resolve current user UUID from JWT (no network call needed) ───────────
+  const userId = authUser?.userId ?? null
 
   const { timesheets, isLoading, error, fetchTimesheets, createTimesheet } =
     useUserTimesheets(userId)
@@ -111,7 +92,7 @@ export default function TimesheetDashboardPage() {
     return map[status] ?? 'bg-slate-400'
   }
 
-  const loading = userLoading || isLoading
+  const loading = isLoading
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,7 +106,7 @@ export default function TimesheetDashboardPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Timesheets</h1>
               <p className="text-sm text-muted-foreground">
-                {currentUser ? `Logged in as ${currentUser.name}` : 'Loading profile…'}
+                {authUser?.email ?? ''}
               </p>
             </div>
           </div>

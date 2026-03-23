@@ -9,6 +9,7 @@ import {
   stripSeconds,
 } from '../utils/timesheetHelpers'
 import { TimesheetStatusBadge } from './TimesheetStatusBadge'
+import { StatCard } from '@/components/ui/StatCard'
 import type { TimesheetResponse, TimeEntryResponse } from '../types/timesheet.types'
 import type { LeaveRequestResponse } from '@/modules/leaves/types/leave.types'
 import type { HolidayResponse } from '@/modules/holidays/types/holiday.types'
@@ -275,29 +276,4 @@ export function TimesheetDetailsView({
   )
 }
 
-// ── Stat card ─────────────────────────────────────────────────────────────────
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  iconClassName = 'from-emerald-500 to-teal-600 shadow-emerald-500/20',
-}: {
-  icon: React.ElementType
-  label: string
-  value: string
-  iconClassName?: string
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4">
-      <div
-        className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br shadow-md', iconClassName)}
-      >
-        <Icon className="h-4 w-4 text-white" />
-      </div>
-      <div>
-        <p className="text-xs text-muted-foreground">{label}</p>
-        <p className="text-lg font-bold leading-tight">{value}</p>
-      </div>
-    </div>
-  )
-}
+// ── StatCard is now in @/components/ui/StatCard ───────────────────────────────

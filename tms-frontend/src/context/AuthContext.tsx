@@ -9,15 +9,16 @@ import {
 
 import authService from '@/services/authService'
 import type { LoginRequest } from '@/types/api.types'
+import { isTokenExpired } from '@/utils/token'
 
 // ── JWT decode helper ─────────────────────────────────────────
-function decodeJwtPayload(token: string): { sub: string; roles?: string[]; userId?: string } | null {
+function decodeJwtPayload(token: string): { sub: string; roles?: string[]; userId?: string; exp?: number } | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     const padded = base64 + '=='.slice(0, (4 - (base64.length % 4)) % 4)
-    return JSON.parse(atob(padded)) as { sub: string; roles?: string[]; userId?: string }
+    return JSON.parse(atob(padded)) as { sub: string; roles?: string[]; userId?: string; exp?: number }
   } catch {
     return null
   }
@@ -75,6 +76,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem(USER_KEY)
     }
   }, [user])
+
+  // Check token expiry on mount and every minute
+  useEffect(() => {
+    const checkExpiry = () => {
+      const storedToken = localStorage.getItem(TOKEN_KEY)
+      if (storedToken && isTokenExpired(storedToken)) {
+        setToken(null)
+        setUser(null)
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login'
+        }
+      }
+    }
+
+    checkExpiry()
+    const id = setInterval(checkExpiry, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const login = useCallback(async (credentials: LoginRequest) => {
     setIsLoading(true)

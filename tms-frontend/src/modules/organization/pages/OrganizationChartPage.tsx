@@ -67,8 +67,8 @@ export default function OrganizationChartPage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-background ">
-      <div className="mx-auto max-w-[1800px] px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="flex h-full flex-col">
+      <div className="mx-auto flex w-full max-w-[1800px] flex-1 flex-col gap-6 px-4 sm:px-6 lg:px-8 py-6 min-h-0">
 
         {/* â”€â”€ Page header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -119,7 +119,7 @@ export default function OrganizationChartPage() {
 
         {/* â”€â”€ Chart â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {!error && (
-          <div className="rounded-xl border border-border bg-card overflow-hidden" style={{ height: 700 }}>
+          <div className="flex-1 min-h-0 rounded-xl border border-border bg-card overflow-hidden">
             {isLoading ? (
               <div className="flex h-full items-center justify-center">
                 <OrgChartSkeleton />

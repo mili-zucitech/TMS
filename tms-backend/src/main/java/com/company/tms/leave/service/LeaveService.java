@@ -1,12 +1,10 @@
 package com.company.tms.leave.service;
 
 import com.company.tms.exception.ResourceNotFoundException;
-import com.company.tms.exception.ValidationException;
 import com.company.tms.leave.dto.LeaveRequestCreateRequest;
 import com.company.tms.leave.dto.LeaveRequestResponse;
 import com.company.tms.leave.entity.Leave;
 import com.company.tms.leave.entity.LeaveStatus;
-import com.company.tms.leave.entity.LeaveType;
 import com.company.tms.leave.mapper.LeaveMapper;
 import com.company.tms.leave.repository.LeaveRepository;
 import com.company.tms.leave.repository.LeaveTypeRepository;
@@ -17,12 +15,16 @@ import com.company.tms.notification.event.LeaveAppliedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -123,6 +125,64 @@ public class LeaveService {
         leave.setRejectionReason(rejectionReason);
         log.info("Leave request {} rejected", id);
         return enrichWithLeaveTypeName(leaveMapper.toLeaveRequestResponse(leaveRepository.save(leave)));
+    }
+
+    public List<LeaveRequestResponse> getAllLeaveRequests(Authentication auth, String statusFilter) {
+        Set<String> roles = auth == null ? Set.of() : auth.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority).collect(Collectors.toSet());
+
+        // Determine the optional status enum to filter by (null = no filter)
+        LeaveStatus statusEnum = null;
+        if (statusFilter != null && !statusFilter.isBlank()) {
+            try {
+                statusEnum = LeaveStatus.valueOf(statusFilter.toUpperCase());
+            } catch (IllegalArgumentException ignored) {
+                // invalid status string — treat as no filter
+            }
+        }
+
+        boolean isPrivileged = roles.contains("ROLE_ADMIN") || roles.contains("ROLE_HR")
+                || roles.contains("ROLE_HR_MANAGER") || roles.contains("ROLE_DIRECTOR");
+
+        List<Leave> leaves;
+        if (isPrivileged) {
+            // Admins/HR see all leaves, filtered by status if provided
+            leaves = statusEnum != null
+                    ? leaveRepository.findByStatus(statusEnum)
+                    : leaveRepository.findAll();
+        } else {
+            String email = auth != null ? auth.getName() : null;
+            Optional<User> caller = email != null ? userRepository.findByEmail(email) : Optional.empty();
+            if (caller.isEmpty()) {
+                return List.of();
+            }
+
+            if (roles.contains("ROLE_MANAGER")) {
+                // Managers see their team + themselves, filtered by status if provided
+                List<UUID> teamIds = userRepository.findByManagerId(caller.get().getId())
+                        .stream().map(User::getId).collect(Collectors.toList());
+                teamIds.add(caller.get().getId());
+                leaves = statusEnum != null
+                        ? leaveRepository.findByUserIdInAndStatus(teamIds, statusEnum)
+                        : leaveRepository.findByUserIdIn(teamIds);
+            } else {
+                // Regular employees see only their own leaves
+                UUID selfId = caller.get().getId();
+                leaves = statusEnum != null
+                        ? leaveRepository.findByUserIdAndStatus(selfId, statusEnum)
+                        : leaveRepository.findByUserId(selfId);
+            }
+        }
+
+        List<UUID> userIds = leaves.stream().map(Leave::getUserId).distinct().collect(Collectors.toList());
+        Map<UUID, String> nameMap = userRepository.findAllById(userIds).stream()
+                .collect(Collectors.toMap(User::getId, User::getName));
+
+        return leaves.stream()
+                .map(leaveMapper::toLeaveRequestResponse)
+                .map(this::enrichWithLeaveTypeName)
+                .peek(r -> r.setEmployeeName(nameMap.getOrDefault(r.getUserId(), r.getUserId().toString())))
+                .collect(Collectors.toList());
     }
 
     public List<LeaveRequestResponse> getLeaveRequestsByUser(UUID userId) {

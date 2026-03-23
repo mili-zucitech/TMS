@@ -112,7 +112,7 @@ export function ReportTable<T extends object>({
                   key={col.key}
                   style={col.width ? { width: col.width } : undefined}
                   className={cn(
-                    'px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap',
+                  'px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap text-left',
                     col.align === 'right'  && 'text-right',
                     col.align === 'center' && 'text-center',
                     col.sortable && 'cursor-pointer select-none hover:text-foreground transition-colors',

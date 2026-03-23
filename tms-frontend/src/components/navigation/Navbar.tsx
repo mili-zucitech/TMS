@@ -83,6 +83,7 @@ export function AppHeader({ onMobileMenuClick }: AppHeaderProps) {
       {/* Search */}
       <div className="hidden sm:flex relative items-center">
         <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+        {/* TODO: wire up search — needs a state handler, debounce, and a results popover */}
         <input
           type="search"
           placeholder="Search…"

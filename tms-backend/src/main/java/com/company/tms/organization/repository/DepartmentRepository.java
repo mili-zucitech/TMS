@@ -2,6 +2,7 @@ package com.company.tms.organization.repository;
 
 import com.company.tms.organization.entity.Department;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -17,4 +18,8 @@ public interface DepartmentRepository extends JpaRepository<Department, Long> {
     Optional<Department> findByNameIgnoreCase(String name);
 
     List<Department> findByStatus(String status);
+
+    /** Single query with LEFT JOIN FETCH to avoid the N+1 problem on employees. */
+    @Query("SELECT DISTINCT d FROM Department d LEFT JOIN FETCH d.employees")
+    List<Department> findAllWithEmployees();
 }

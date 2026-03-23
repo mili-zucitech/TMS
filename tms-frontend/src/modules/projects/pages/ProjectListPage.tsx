@@ -22,7 +22,6 @@ import projectService from '../services/projectService'
 import departmentService from '@/modules/users/services/departmentService'
 import userModuleService from '@/modules/users/services/userService'
 import type { DepartmentResponse } from '@/modules/users/types/user.types'
-import type { UserResponse } from '@/modules/users/types/user.types'
 
 export default function ProjectListPage() {
   const { user: authUser } = useAuth()
@@ -31,19 +30,15 @@ export default function ProjectListPage() {
 
   // ── Departments + users ─────────────────────────────────────
   const [departments, setDepartments] = useState<DepartmentResponse[]>([])
-  const [allUsers, setAllUsers] = useState<UserResponse[]>([])
   const [managers, setManagers] = useState<{ id: string; name: string; employeeId: string }[]>([])
   const [myAssignedProjectIds, setMyAssignedProjectIds] = useState<Set<number>>(new Set())
 
-  const currentUserId = useMemo(
-    () => allUsers.find((u) => u.email === authUser?.email)?.id,
-    [allUsers, authUser?.email],
-  )
+  // userId is available directly from the JWT — no need to fetch the user list
+  const currentUserId = authUser?.userId ?? undefined
 
   useEffect(() => {
     departmentService.getDepartments().then((p) => setDepartments(p.content)).catch(() => {})
     userModuleService.getUsers(0, 500).then((p) => {
-      setAllUsers(p.content)
       setManagers(
         p.content
           .filter((u) => u.roleName === 'MANAGER' || u.roleName === 'HR_MANAGER' || u.roleName === 'DIRECTOR')

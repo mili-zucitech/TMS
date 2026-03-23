@@ -72,11 +72,8 @@ export default function TaskListPage() {
     })
   }, [])
 
-  // Resolve current user's UUID from their email (AuthContext only exposes email)
-  const currentUserId = useMemo(
-    () => users.find((u) => u.email === authUser?.email)?.id,
-    [users, authUser?.email],
-  )
+  // Resolve current user's UUID directly from the JWT
+  const currentUserId = authUser?.userId
 
   // Managers (MANAGER/HR_MANAGER) only see projects they manage; admins/HR/DIRECTOR see all
   const visibleProjects = useMemo(

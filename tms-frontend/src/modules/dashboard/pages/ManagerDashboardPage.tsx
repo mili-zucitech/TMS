@@ -258,7 +258,7 @@ export function ManagerDashboardPage() {
                 <Pie
                   data={tsDistribution}
                   cx="50%"
-                  cy="45%"
+                  cy="50%"
                   innerRadius={55}
                   outerRadius={85}
                   paddingAngle={3}
@@ -418,18 +418,34 @@ export function ManagerDashboardPage() {
           <EmptyState icon={FolderKanban} title="No projects found" />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {allProjects.filter((p) => p.status === 'ACTIVE').slice(0, 6).map((p) => (
-              <div
-                key={p.id}
-                className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-semibold truncate">{p.name}</p>
-                  <Badge variant="success" className="text-[10px] shrink-0">Active</Badge>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">{p.clientName ?? p.projectCode}</p>
-              </div>
-            ))}
+            {[...allProjects]
+              .sort((a, b) => {
+                const order: Record<string, number> = { ACTIVE: 0, ON_HOLD: 1, PLANNED: 2, COMPLETED: 3, CANCELLED: 4 }
+                return (order[a.status] ?? 5) - (order[b.status] ?? 5)
+              })
+              .slice(0, 6)
+              .map((p) => {
+                const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'secondary' | 'destructive' }> = {
+                  ACTIVE:    { label: 'Active',    variant: 'success' },
+                  PLANNED:   { label: 'Planned',   variant: 'info' },
+                  ON_HOLD:   { label: 'On Hold',   variant: 'warning' },
+                  COMPLETED: { label: 'Completed', variant: 'secondary' },
+                  CANCELLED: { label: 'Cancelled', variant: 'destructive' },
+                }
+                const cfg = statusConfig[p.status] ?? { label: p.status, variant: 'secondary' as const }
+                return (
+                  <div
+                    key={p.id}
+                    className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold truncate">{p.name}</p>
+                      <Badge variant={cfg.variant} className="text-[10px] shrink-0">{cfg.label}</Badge>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">{p.clientName ?? p.projectCode}</p>
+                  </div>
+                )
+              })}
           </div>
         )}
       </DashboardCard>

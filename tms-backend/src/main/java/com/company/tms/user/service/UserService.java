@@ -41,7 +41,7 @@ public class UserService {
      * The provided plain-text password is hashed before persistence.
      */
     @Transactional
-    public synchronized UserResponse createUser(UserCreateRequest request) {
+    public UserResponse createUser(UserCreateRequest request) {
         log.info("Creating user for email: {}", request.getEmail());
 
         userValidator.validateEmailUniqueness(request.getEmail());

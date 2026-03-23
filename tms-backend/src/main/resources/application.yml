@@ -35,7 +35,7 @@ spring:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
     username: milisrivastava.zucitech@gmail.com
-    password: gffjrpybyuuqutpe
+    password: ${MAIL_PASSWORD:gffjrpybyuuqutpe}
     properties:
       mail:
         smtp:
@@ -51,7 +51,7 @@ server:
 # WARNING: Replace jwt.secret with a securely generated Base64-encoded key before deploying to production.
 # Generate with: openssl rand -base64 64
 jwt:
-  secret: dG1zLWp3dC1zZWNyZXQta2V5LXZlcnktc2VjdXJlLW1pbi0zMi1jaGFycw==
+  secret: ${JWT_SECRET:dG1zLWp3dC1zZWNyZXQta2V5LXZlcnktc2VjdXJlLW1pbi0zMi1jaGFycw==}
   expiration: 86400000  # 24 hours in milliseconds
 
 # CORS Configuration
@@ -62,8 +62,8 @@ cors:
 
 # Async thread pool
 async:
-  core-pool-size: 4
-  max-pool-size: 10
+  core-pool-size: 5
+  max-pool-size: 20
   queue-capacity: 500
 
 logging:

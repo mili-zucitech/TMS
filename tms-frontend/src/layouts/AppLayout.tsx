@@ -5,17 +5,39 @@ import { Sidebar } from '@/components/navigation/Sidebar'
 import { AppHeader } from '@/components/navigation/Navbar'
 import { useAuth } from '@/context/AuthContext'
 import { cn } from '@/utils/cn'
+import { useIsMobile } from '@/hooks/useIsMobile'
+import { useDocumentTitle } from '@/hooks/useDocumentTitle'
 
-// ── Responsive breakpoint hook ────────────────────────────────
+// ── Static route-to-title map ─────────────────────────────────────────────────
+const PAGE_TITLES: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/my-team': 'My Team',
+  '/users': 'User Management',
+  '/organization': 'Organization',
+  '/departments': 'Departments',
+  '/projects': 'Projects',
+  '/tasks': 'Tasks',
+  '/timesheets': 'Timesheets',
+  '/timesheets/history': 'Timesheet History',
+  '/timesheets/manager': 'Team Timesheets',
+  '/timesheets/reminders': 'Timesheet Reminders',
+  '/leave': 'Leave Management',
+  '/leave/approvals': 'Leave Approvals',
+  '/holidays': 'Holidays',
+  '/notifications': 'Notifications',
+  '/reports': 'Reports',
+  '/settings': 'Settings',
+}
 
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
-  useEffect(() => {
-    const handler = () => setIsMobile(window.innerWidth < 768)
-    window.addEventListener('resize', handler)
-    return () => window.removeEventListener('resize', handler)
-  }, [])
-  return isMobile
+/** Resolve title for the current path, handling dynamic segments like /projects/:id */
+function resolvePageTitle(pathname: string): string {
+  if (PAGE_TITLES[pathname]) return PAGE_TITLES[pathname]
+  // Match /timesheets/<uuid> → "Timesheet"
+  if (/^\/timesheets\/[^/]+$/.test(pathname)) return 'Timesheet'
+  if (/^\/timesheets\/manager\/review\/[^/]+$/.test(pathname)) return 'Review Timesheet'
+  if (/^\/projects\/[^/]+$/.test(pathname)) return 'Project Details'
+  if (/^\/tasks\/[^/]+$/.test(pathname)) return 'Task Details'
+  return 'TMS'
 }
 
 // ── Layout ────────────────────────────────────────────────────
@@ -24,6 +46,8 @@ export function AppLayout() {
   const { user } = useAuth()
   const location = useLocation()
   const isMobile = useIsMobile()
+
+  useDocumentTitle(resolvePageTitle(location.pathname))
 
   const [collapsed, setCollapsed] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)

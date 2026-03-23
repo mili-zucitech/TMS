@@ -28,7 +28,7 @@ export function ReportCard({
 
   return (
     <Card className={cn('relative overflow-hidden transition-shadow hover:shadow-md', className)}>
-      <CardContent className="p-5">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground truncate">
@@ -61,11 +61,11 @@ export function ReportCard({
           </div>
           <div
             className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md',
+              'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br shadow-md',
               iconColor,
             )}
           >
-            <Icon className="h-5 w-5 text-white" />
+            <Icon className="h-4 w-4 text-white" />
           </div>
         </div>
       </CardContent>

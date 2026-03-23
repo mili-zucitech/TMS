@@ -73,7 +73,6 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'People',
     items: [
       { path: '/users', label: 'Users', icon: Users, roles: ['ADMIN', 'HR', 'HR_MANAGER'] },
-      { path: '/my-team', label: 'My Team', icon: UsersRound },
       { path: '/leave', label: 'Leave', icon: CalendarDays },
       {
         path: '/leave/approvals',
@@ -82,6 +81,7 @@ const NAV_SECTIONS: NavSection[] = [
         roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
       },
       { path: '/holidays', label: 'Holidays', icon: CalendarCheck },
+      { path: '/my-team', label: 'My Team', icon: UsersRound },
       {
         path: '/organization',
         label: 'Organization',
@@ -223,7 +223,7 @@ function SidebarContent({
         </div>
 
         {/* ── Navigation ────────────────────────────────── */}
-        <nav className="flex-1 overflow-y-auto py-3">
+        <nav className="flex-1 overflow-y-auto sidebar-scroll py-3">
           <div className={cn('space-y-0.5', isCollapsed ? 'px-2' : 'px-3')}>
             {NAV_SECTIONS.map((section, idx) => {
               const visibleItems = section.items.filter((item) => {

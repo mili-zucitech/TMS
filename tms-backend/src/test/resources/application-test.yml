@@ -1,0 +1,43 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+    open-in-view: false
+
+  flyway:
+    enabled: false
+
+  mail:
+    host: localhost
+    port: 3025
+    username: test@test.com
+    password: test
+
+jwt:
+  secret: dG1zLWp3dC1zZWNyZXQta2V5LXZlcnktc2VjdXJlLW1pbi0zMi1jaGFycw==
+  expiration: 86400000
+
+cors:
+  allowed-origins:
+    - http://localhost:5173
+
+async:
+  core-pool-size: 2
+  max-pool-size: 4
+  queue-capacity: 100
+
+logging:
+  level:
+    com.company.tms: WARN
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN

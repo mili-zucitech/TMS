@@ -13,6 +13,7 @@ import {
   getTeamLeaveRequests,
   getAllAuditLogs,
 } from '../services/dashboardService'
+import { getWeekStart, getWeekEnd, toDateString } from '@/modules/timesheets/utils/timesheetHelpers'
 import type {
   AuditLogResponse,
   DepartmentResponse,
@@ -28,22 +29,13 @@ import type {
   WeeklyTimesheetSummary,
 } from '../types/dashboard.types'
 
-// ── Week helpers ──────────────────────────────────────────────────────────────
-
+// ── Week helpers (re-exported for backwards compatibility) ────────────────────────────
 export function getWeekStartDate(): string {
-  const now = new Date()
-  const dow = now.getDay()
-  const daysBack = dow === 0 ? 6 : dow - 1
-  const monday = new Date(now)
-  monday.setDate(now.getDate() - daysBack)
-  return monday.toISOString().split('T')[0]
+  return toDateString(getWeekStart(new Date()))
 }
 
 export function getWeekEndDate(): string {
-  const monday = new Date(getWeekStartDate())
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  return sunday.toISOString().split('T')[0]
+  return toDateString(getWeekEnd(getWeekStart(new Date())))
 }
 
 // ── useEmployeeDashboard ──────────────────────────────────────────────────────

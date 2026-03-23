@@ -52,10 +52,8 @@ import type {
 } from '../types/timesheet.types'
 
 import projectService from '@/modules/projects/services/projectService'
-import userModuleService from '@/modules/users/services/userService'
 import taskService from '@/modules/tasks/services/taskService'
 import type { ProjectResponse } from '@/modules/projects/types/project.types'
-import type { UserResponse } from '@/modules/users/types/user.types'
 import type { TaskResponse } from '@/modules/tasks/types/task.types'
 import { TimesheetLeaveModal } from '../components/TimesheetLeaveModal'
 import {
@@ -94,7 +92,6 @@ export default function TimesheetEntryPage() {
 
   // ── Reference data ─────────────────────────────────────────────────────
   const [allProjects, setAllProjects] = useState<ProjectResponse[]>([])
-  const [users, setUsers] = useState<UserResponse[]>([])
   const [tasks, setTasks] = useState<TaskResponse[]>([])
   const hasLoadedRef = useRef(false)
 
@@ -103,11 +100,9 @@ export default function TimesheetEntryPage() {
     hasLoadedRef.current = true
     Promise.all([
       projectService.getProjects(0, 200).catch(() => ({ content: [] as ProjectResponse[] })),
-      userModuleService.getUsers(0, 200).catch(() => ({ content: [] as UserResponse[] })),
       taskService.getTasks(0, 500).catch(() => ({ content: [] as TaskResponse[] })),
-    ]).then(([pPage, uPage, tPage]) => {
+    ]).then(([pPage, tPage]) => {
       setAllProjects(pPage.content)
-      setUsers(uPage.content)
       setTasks(tPage.content)
     })
   }, [])
@@ -121,11 +116,9 @@ export default function TimesheetEntryPage() {
     [tasks],
   )
 
-  // ── Current user's UUID ─────────────────────────────────────────────────
-  const currentUser = useMemo(
-    () => users.find((u) => u.email === authUser?.email) ?? null,
-    [users, authUser],
-  )
+  // ── Current user's UUID (available directly from the JWT) ───────────────
+  // Build a minimal object matching the expected shape to minimise call-site changes.
+  const currentUser = authUser?.userId ? { id: authUser.userId } : null
 
   // ── Role-scoped project assignments ────────────────────────────────────
   const [assignedProjectIds, setAssignedProjectIds] = useState<Set<number> | null>(null)
