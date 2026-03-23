@@ -18,7 +18,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id", updatable = false, nullable = false)
+    @Column(name = "id", updatable = false, nullable = false, columnDefinition = "CHAR(36)")
     private UUID id;
 
     @Column(name = "employee_id", unique = true, nullable = false)
@@ -39,7 +39,7 @@ public class User {
     @Column(name = "department_id")
     private Long departmentId;
 
-    @Column(name = "manager_id")
+    @Column(name = "manager_id", columnDefinition = "CHAR(36)")
     private UUID managerId;
 
     @ManyToOne(fetch = FetchType.EAGER)
