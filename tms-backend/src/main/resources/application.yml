@@ -34,7 +34,7 @@ spring:
   mail:
     host: ${MAIL_HOST:smtp.gmail.com}
     port: ${MAIL_PORT:587}
-    username: milisrivastava.zucitech@gmail.com
+    username: ${MAIL_USERNAME:milisrivastava.zucitech@gmail.com}
     password: ${MAIL_PASSWORD:gffjrpybyuuqutpe}
     properties:
       mail:
@@ -45,7 +45,7 @@ spring:
             required: true
 
 server:
-  port: 8080
+  port: ${PORT:8080}
 
 # JWT Configuration
 # WARNING: Replace jwt.secret with a securely generated Base64-encoded key before deploying to production.
