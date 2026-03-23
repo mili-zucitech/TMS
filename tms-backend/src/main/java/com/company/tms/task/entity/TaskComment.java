@@ -2,6 +2,8 @@ package com.company.tms.task.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -26,7 +28,8 @@ public class TaskComment {
     /**
      * UUID of the user who wrote this comment.
      */
-    @Column(name = "user_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "user_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID userId;
 
     @Column(name = "comment", nullable = false, length = 2000)

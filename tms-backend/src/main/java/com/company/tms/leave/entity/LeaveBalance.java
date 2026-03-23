@@ -2,6 +2,8 @@ package com.company.tms.leave.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -26,7 +28,8 @@ public class LeaveBalance {
     @Column(name = "id", updatable = false, nullable = false)
     private Long id;
 
-    @Column(name = "user_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "user_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID userId;
 
     @Column(name = "leave_type_id", nullable = false)

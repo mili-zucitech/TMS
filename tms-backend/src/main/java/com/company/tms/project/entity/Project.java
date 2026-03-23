@@ -2,6 +2,8 @@ package com.company.tms.project.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -39,7 +41,8 @@ public class Project {
     /**
      * UUID of the User designated as project manager.
      */
-    @Column(name = "project_manager_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "project_manager_id", columnDefinition = "CHAR(36)")
     private UUID projectManagerId;
 
     @Column(name = "start_date")

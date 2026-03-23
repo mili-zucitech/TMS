@@ -2,6 +2,8 @@ package com.company.tms.audit.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -19,7 +21,8 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "user_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "user_id", columnDefinition = "CHAR(36)")
     private UUID userId;
 
     @Enumerated(EnumType.STRING)

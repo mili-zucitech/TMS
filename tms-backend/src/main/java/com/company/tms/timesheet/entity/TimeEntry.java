@@ -2,6 +2,8 @@ package com.company.tms.timesheet.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -34,7 +36,8 @@ public class TimeEntry {
     @Column(name = "task_note", length = 255)
     private String taskNote;
 
-    @Column(name = "user_id", nullable = false)
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "user_id", nullable = false, columnDefinition = "CHAR(36)")
     private UUID userId;
 
     @Column(name = "work_date", nullable = false)

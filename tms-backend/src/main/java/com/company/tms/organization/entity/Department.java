@@ -3,6 +3,8 @@ package com.company.tms.organization.entity;
 import com.company.tms.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -28,7 +30,8 @@ public class Department {
     @Column
     private String description;
 
-    @Column(name = "head_id")
+    @JdbcTypeCode(SqlTypes.CHAR)
+    @Column(name = "head_id", columnDefinition = "CHAR(36)")
     private UUID headId;
 
     @Column(nullable = false)

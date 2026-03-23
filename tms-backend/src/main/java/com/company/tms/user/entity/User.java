@@ -2,6 +2,8 @@ package com.company.tms.user.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,6 +20,7 @@ public class User {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "id", updatable = false, nullable = false, columnDefinition = "CHAR(36)")
     private UUID id;
 
@@ -39,6 +42,7 @@ public class User {
     @Column(name = "department_id")
     private Long departmentId;
 
+    @JdbcTypeCode(SqlTypes.CHAR)
     @Column(name = "manager_id", columnDefinition = "CHAR(36)")
     private UUID managerId;
 
