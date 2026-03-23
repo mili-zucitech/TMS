@@ -35,6 +35,7 @@ public interface TaskMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "taskCode", ignore = true)
     @Mapping(target = "projectId", ignore = true)
+    @Mapping(target = "createdByUserId", ignore = true)
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     void updateTaskEntity(TaskUpdateRequest request, @MappingTarget Task task);

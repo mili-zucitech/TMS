@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration test for the complete leave request workflow:
  * Employee applies → Manager approves/rejects → Employee cancels.
  *
- * <p>Uses the Testcontainers MySQL instance from {@link AbstractIntegrationTest}.
+ * <p>Uses the H2 in-memory database configured in {@code application-test.yml}.
  * Test data (users, leave balances, pre-existing leaves) is seeded in {@link #setupTestData()}.</p>
  */
 @DisplayName("Leave Workflow Integration Tests")

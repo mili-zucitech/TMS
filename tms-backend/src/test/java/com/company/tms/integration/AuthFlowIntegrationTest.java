@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * End-to-end authentication flow integration test.
- * Uses the Testcontainers MySQL instance configured in {@link AbstractIntegrationTest}.
+ * Uses the H2 in-memory database configured in {@code application-test.yml}.
  * The admin user (admin@tms.com / Admin@123) is seeded by {@code DataInitializer} on startup.
  */
 @DisplayName("Auth Flow Integration Tests")

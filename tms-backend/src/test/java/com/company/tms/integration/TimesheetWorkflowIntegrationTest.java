@@ -34,7 +34,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Integration test for the complete timesheet workflow:
  * Employee creates → submits → Manager approves → Admin locks.
  *
- * <p>Uses the Testcontainers MySQL instance from {@link AbstractIntegrationTest}.
+ * <p>Uses the H2 in-memory database configured in {@code application-test.yml}.
  * Test data is seeded in {@link #setupTestData()} via direct repository injection.</p>
  */
 @DisplayName("Timesheet Workflow Integration Tests")

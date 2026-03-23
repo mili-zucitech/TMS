@@ -3,9 +3,9 @@ spring:
     name: tms-backend
 
   datasource:
-    url: jdbc:mysql://localhost:3306/tms?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
-    username: root
-    password: root
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -57,8 +57,7 @@ jwt:
 # CORS Configuration
 cors:
   allowed-origins:
-    - http://localhost:5173
-    - http://localhost:3000
+    - ${FRONTEND_URL:http://localhost:5173}
 
 # Async thread pool
 async:
