@@ -257,7 +257,7 @@ export function ManagerDashboardPage() {
               <PieChart>
                 <Pie
                   data={tsDistribution}
-                  cx="50%"
+                  cx="55%"
                   cy="50%"
                   innerRadius={55}
                   outerRadius={85}
