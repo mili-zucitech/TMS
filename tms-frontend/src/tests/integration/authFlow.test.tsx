@@ -11,6 +11,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { server } from '@/test/mocks/server'
 import { http, HttpResponse } from 'msw'
 import { AuthProvider } from '@/context/AuthContext'
+import { createAppStore } from '@/store/store'
 import LoginPage from '@/pages/auth/LoginPage'
 
 // A minimal dashboard stub to confirm navigation
@@ -20,12 +21,14 @@ function DashboardStub() {
 
 /**
  * Render the full auth-capable app without mocking useAuth or useNavigate —
- * this is a true integration test.
+ * this is a true integration test.  Each call gets a fresh Redux store so
+ * tests are fully isolated from one another.
  */
 function renderApp(initialEntry = '/login') {
+  const testStore = createAppStore()
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
-      <AuthProvider>
+      <AuthProvider store={testStore}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/dashboard" element={<DashboardStub />} />

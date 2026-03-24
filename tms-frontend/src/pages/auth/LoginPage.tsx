@@ -1,11 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AxiosError } from 'axios'
 
 import { AuthLayout } from '@/components/auth/AuthLayout'
 import { LoginForm, type LoginFormValues } from '@/components/auth/LoginForm'
 import { useAuth } from '@/context/AuthContext'
-import type { ApiResponse } from '@/types/api.types'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -21,11 +19,11 @@ export default function LoginPage() {
       await login({ email: values.email, password: values.password })
       navigate('/dashboard', { replace: true })
     } catch (err) {
-      const axiosErr = err as AxiosError<ApiResponse<unknown>>
-      const serverMessage = axiosErr.response?.data?.message
-      setError(
-        serverMessage ?? 'Invalid email or password. Please try again.',
-      )
+      // RTK Query errors: { status, data: { message } }
+      // Axios errors (legacy): { response: { data: { message } } }
+      const rtkMsg = (err as { data?: { message?: string } }).data?.message
+      const axiosMsg = (err as { response?: { data?: { message?: string } } }).response?.data?.message
+      setError(rtkMsg ?? axiosMsg ?? 'Invalid email or password. Please try again.')
     } finally {
       setIsLoading(false)
     }

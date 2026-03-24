@@ -4,35 +4,46 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useState,
 } from 'react'
+import { Provider } from 'react-redux'
 
-import authService from '@/services/authService'
-import type { LoginRequest } from '@/types/api.types'
+import { store, createAppStore } from '@/store/store'
+import { useAppDispatch, useAppSelector } from '@/store/hooks'
+import {
+  setCredentials,
+  logout as logoutAction,
+  selectToken,
+  selectUser,
+  selectIsAuthenticated,
+  selectIsAuthLoading,
+  setAuthLoading,
+  type AuthUser,
+} from '@/features/auth/authSlice'
+import { useLoginMutation } from '@/features/auth/authApi'
 import { isTokenExpired } from '@/utils/token'
+import type { LoginRequest } from '@/types/api.types'
 
-// ── JWT decode helper ─────────────────────────────────────────
-function decodeJwtPayload(token: string): { sub: string; roles?: string[]; userId?: string; exp?: number } | null {
+// ── JWT decode helper ─────────────────────────────────────────────────────────
+function decodeJwtPayload(
+  token: string,
+): { sub: string; roles?: string[]; userId?: string; exp?: number } | null {
   try {
     const parts = token.split('.')
     if (parts.length !== 3) return null
     const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
     const padded = base64 + '=='.slice(0, (4 - (base64.length % 4)) % 4)
-    return JSON.parse(atob(padded)) as { sub: string; roles?: string[]; userId?: string; exp?: number }
+    return JSON.parse(atob(padded)) as {
+      sub: string
+      roles?: string[]
+      userId?: string
+      exp?: number
+    }
   } catch {
     return null
   }
 }
 
-// ── Types ────────────────────────────────────────────────────
-interface AuthUser {
-  email: string
-  /** UUID from the JWT userId claim — used for API calls that require a user UUID */
-  userId: string | null
-  /** Role name without the ROLE_ prefix, e.g. "ADMIN", "HR" */
-  roleName: string | null
-}
-
+// ── Types ─────────────────────────────────────────────────────────────────────
 interface AuthContextValue {
   user: AuthUser | null
   token: string | null
@@ -42,94 +53,83 @@ interface AuthContextValue {
   logout: () => void
 }
 
-// ── Storage keys ─────────────────────────────────────────────
-const TOKEN_KEY = 'tms_token'
-const USER_KEY = 'tms_user'
-
-// ── Context ──────────────────────────────────────────────────
+// ── Context ───────────────────────────────────────────────────────────────────
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
-// ── Provider ─────────────────────────────────────────────────
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(
-    () => localStorage.getItem(TOKEN_KEY),
-  )
-  const [user, setUser] = useState<AuthUser | null>(() => {
-    const stored = localStorage.getItem(USER_KEY)
-    return stored ? (JSON.parse(stored) as AuthUser) : null
-  })
-  const [isLoading, setIsLoading] = useState(false)
+// ── Inner provider — has access to Redux store ────────────────────────────────
+function AuthProviderInner({ children }: { children: React.ReactNode }) {
+  const dispatch = useAppDispatch()
+  const token = useAppSelector(selectToken)
+  const user = useAppSelector(selectUser)
+  const isAuthenticated = useAppSelector(selectIsAuthenticated)
+  const isLoading = useAppSelector(selectIsAuthLoading)
 
-  // Keep localStorage in sync whenever state changes
-  useEffect(() => {
-    if (token) {
-      localStorage.setItem(TOKEN_KEY, token)
-    } else {
-      localStorage.removeItem(TOKEN_KEY)
-    }
-  }, [token])
+  const [loginMutation] = useLoginMutation()
 
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem(USER_KEY, JSON.stringify(user))
-    } else {
-      localStorage.removeItem(USER_KEY)
-    }
-  }, [user])
-
-  // Check token expiry on mount and every minute
+  // Periodically check token expiry and logout if expired
   useEffect(() => {
     const checkExpiry = () => {
-      const storedToken = localStorage.getItem(TOKEN_KEY)
+      const storedToken = localStorage.getItem('tms_token')
       if (storedToken && isTokenExpired(storedToken)) {
-        setToken(null)
-        setUser(null)
-        if (window.location.pathname !== '/login') {
-          window.location.href = '/login'
-        }
+        dispatch(logoutAction())
       }
     }
-
     checkExpiry()
     const id = setInterval(checkExpiry, 60_000)
     return () => clearInterval(id)
-  }, [])
+  }, [dispatch])
 
-  const login = useCallback(async (credentials: LoginRequest) => {
-    setIsLoading(true)
-    try {
-      const response = await authService.login(credentials)
-      setToken(response.accessToken)
-      const decoded = decodeJwtPayload(response.accessToken)
-      const roleName = decoded?.roles?.[0]?.replace(/^ROLE_/, '') ?? null
-      const userId = decoded?.userId ?? null
-      setUser({ email: credentials.email, userId, roleName })
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+  const login = useCallback(
+    async (credentials: LoginRequest) => {
+      dispatch(setAuthLoading(true))
+      try {
+        const response = await loginMutation(credentials).unwrap()
+        const decoded = decodeJwtPayload(response.accessToken)
+        const roleName = decoded?.roles?.[0]?.replace(/^ROLE_/, '') ?? null
+        const userId = decoded?.userId ?? null
+        dispatch(
+          setCredentials({
+            token: response.accessToken,
+            user: { email: credentials.email, userId, roleName },
+          }),
+        )
+      } finally {
+        dispatch(setAuthLoading(false))
+      }
+    },
+    [dispatch, loginMutation],
+  )
 
   const logout = useCallback(() => {
-    setToken(null)
-    setUser(null)
-  }, [])
+    dispatch(logoutAction())
+  }, [dispatch])
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      user,
-      token,
-      isAuthenticated: !!token,
-      isLoading,
-      login,
-      logout,
-    }),
-    [user, token, isLoading, login, logout],
+    () => ({ user, token, isAuthenticated, isLoading, login, logout }),
+    [user, token, isAuthenticated, isLoading, login, logout],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-// ── Hook ─────────────────────────────────────────────────────
+// ── Public AuthProvider ───────────────────────────────────────────────────────
+// Wraps children with the Redux Provider so all consumers have store access.
+// Accepts an optional `store` prop to allow tests to inject a fresh store.
+interface AuthProviderProps {
+  children: React.ReactNode
+  /** Inject a custom store (e.g. freshly created in tests). Defaults to the app singleton. */
+  store?: ReturnType<typeof createAppStore>
+}
+
+export function AuthProvider({ children, store: storeOverride }: AuthProviderProps) {
+  return (
+    <Provider store={storeOverride ?? store}>
+      <AuthProviderInner>{children}</AuthProviderInner>
+    </Provider>
+  )
+}
+
+// ── Hook ──────────────────────────────────────────────────────────────────────
 export function useAuth(): AuthContextValue {
   const ctx = useContext(AuthContext)
   if (!ctx) {

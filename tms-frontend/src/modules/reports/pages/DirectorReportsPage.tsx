@@ -52,25 +52,6 @@ const projectCols: Column<ProjectUtilizationEntry>[] = [
     ) },
 ]
 
-// ── Cost analysis columns ─────────────────────────────────────────────────────
-const costCols: Column<BillableHoursEntry>[] = [
-  { key: 'employeeName',    header: 'Employee',        sortable: true },
-  { key: 'department',      header: 'Department',      sortable: true },
-  { key: 'projectName',     header: 'Project',         sortable: true },
-  { key: 'totalHours',      header: 'Total hrs',       sortable: true, align: 'right',
-    render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'billableHours',   header: 'Billable',        sortable: true, align: 'right',
-    render: (v) => <span className="font-mono text-emerald-600 dark:text-emerald-400 font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'nonBillableHours',header: 'Non-billable',    align: 'right',
-    render: (v) => <span className="font-mono text-red-500">{Number(v).toFixed(1)}</span> },
-  { key: 'billablePercent', header: 'Efficiency %',    sortable: true, align: 'right',
-    render: (v) => (
-      <span className={`font-mono text-xs font-semibold ${Number(v) >= 80 ? 'text-emerald-600' : Number(v) >= 60 ? 'text-amber-600' : 'text-red-500'}`}>
-        {Number(v)}%
-      </span>
-    ) },
-]
-
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function DirectorReportsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('executive')

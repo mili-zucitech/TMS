@@ -1,66 +1,55 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useCallback } from 'react'
 import { toast } from 'sonner'
-import type { AxiosError } from 'axios'
 
-import projectService from '../services/projectService'
-import type { ProjectAssignmentResponse, ProjectAssignmentRequest } from '../types/project.types'
-import type { ApiResponse } from '@/types/api.types'
+import {
+  useGetAssignmentsByProjectQuery,
+  useAssignUserMutation,
+  useRemoveAssignmentMutation,
+} from '@/features/projects/projectsApi'
+import type { ProjectAssignmentRequest } from '../types/project.types'
 
 function getErrorMessage(err: unknown, fallback: string): string {
-  const axiosErr = err as AxiosError<ApiResponse<unknown>>
-  return axiosErr?.response?.data?.message ?? fallback
+  const msg = (err as { data?: { message?: string } })?.data?.message
+  return msg ?? fallback
 }
 
 export function useProjectAssignments(projectId: number | null) {
-  const [assignments, setAssignments] = useState<ProjectAssignmentResponse[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const { data: assignments = [], isLoading } = useGetAssignmentsByProjectQuery(
+    projectId!,
+    { skip: projectId === null },
+  )
 
-  const fetchAssignments = useCallback(async () => {
-    if (projectId === null) return
-    setIsLoading(true)
-    try {
-      const data = await projectService.getAssignmentsByProject(projectId)
-      setAssignments(data)
-    } catch {
-      // silently fail — ProjectDetailsPage shows the error state
-    } finally {
-      setIsLoading(false)
-    }
-  }, [projectId])
-
-  useEffect(() => {
-    fetchAssignments()
-  }, [fetchAssignments])
+  const [assignUserMutation] = useAssignUserMutation()
+  const [removeAssignmentMutation] = useRemoveAssignmentMutation()
 
   const assignUser = useCallback(
     async (payload: ProjectAssignmentRequest): Promise<boolean> => {
       try {
-        await projectService.assignUser(payload)
+        await assignUserMutation(payload).unwrap()
         toast.success('Employee assigned to project')
-        await fetchAssignments()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to assign employee'))
         return false
       }
     },
-    [fetchAssignments],
+    [assignUserMutation],
   )
 
   const removeAssignment = useCallback(
     async (assignmentId: number): Promise<boolean> => {
+      if (projectId === null) return false
       try {
-        await projectService.removeAssignment(assignmentId)
+        await removeAssignmentMutation({ assignmentId, projectId }).unwrap()
         toast.success('Employee removed from project')
-        await fetchAssignments()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to remove employee'))
         return false
       }
     },
-    [fetchAssignments],
+    [removeAssignmentMutation, projectId],
   )
 
-  return { assignments, isLoading, fetchAssignments, assignUser, removeAssignment }
+  return { assignments, isLoading, assignUser, removeAssignment }
 }

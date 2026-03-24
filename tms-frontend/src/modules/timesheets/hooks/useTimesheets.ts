@@ -1,8 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useCallback } from 'react'
 import { toast } from 'sonner'
-import type { AxiosError } from 'axios'
 
-import timesheetService from '../services/timesheetService'
+import {
+  useGetTimesheetsByUserQuery,
+  useGetTimesheetByIdQuery,
+  useCreateTimesheetMutation,
+  useSubmitTimesheetMutation,
+  useApproveTimesheetMutation,
+  useRejectTimesheetMutation,
+  useGetEntriesByTimesheetQuery,
+  useCreateTimeEntryMutation,
+  useUpdateTimeEntryMutation,
+  useDeleteTimeEntryMutation,
+} from '@/features/timesheets/timesheetsApi'
 import type {
   TimesheetResponse,
   TimesheetCreateRequest,
@@ -11,99 +21,89 @@ import type {
   TimeEntryCreateRequest,
   TimeEntryUpdateRequest,
 } from '../types/timesheet.types'
-import type { ApiResponse } from '@/types/api.types'
 
 function getErrorMessage(err: unknown, fallback: string): string {
-  const axiosErr = err as AxiosError<ApiResponse<unknown>>
-  return axiosErr?.response?.data?.message ?? fallback
+  const msg = (err as { data?: { message?: string } })?.data?.message
+  return msg ?? fallback
 }
 
-// ── User's timesheets list ────────────────────────────────────────────────────
+// â”€â”€ User's timesheets list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function useUserTimesheets(userId: string | null) {
-  const [timesheets, setTimesheets] = useState<TimesheetResponse[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: rawTimesheets = [],
+    isLoading,
+    error: queryError,
+    refetch: fetchTimesheets,
+  } = useGetTimesheetsByUserQuery(userId!, { skip: !userId })
 
-  const fetchTimesheets = useCallback(async () => {
-    if (!userId) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await timesheetService.getTimesheetsByUser(userId)
-      // sort newest first
-      const sorted = [...data].sort(
-        (a, b) => new Date(b.weekStartDate).getTime() - new Date(a.weekStartDate).getTime(),
-      )
-      setTimesheets(sorted)
-    } catch (err) {
-      setError(getErrorMessage(err, 'Failed to load timesheets'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [userId])
+  // Sort newest first (same behaviour as old hook)
+  const timesheets = [...rawTimesheets].sort(
+    (a, b) => new Date(b.weekStartDate).getTime() - new Date(a.weekStartDate).getTime(),
+  )
+  const error = queryError ? getErrorMessage(queryError, 'Failed to load timesheets') : null
 
-  useEffect(() => {
-    fetchTimesheets()
-  }, [fetchTimesheets])
+  const [createTimesheetMutation] = useCreateTimesheetMutation()
+  const [submitTimesheetMutation] = useSubmitTimesheetMutation()
+  const [approveTimesheetMutation] = useApproveTimesheetMutation()
+  const [rejectTimesheetMutation] = useRejectTimesheetMutation()
 
   const createTimesheet = useCallback(
     async (payload: TimesheetCreateRequest): Promise<TimesheetResponse | null> => {
       try {
-        const ts = await timesheetService.createTimesheet(payload)
+        const ts = await createTimesheetMutation(payload).unwrap()
         toast.success('Timesheet created')
-        await fetchTimesheets()
         return ts
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to create timesheet'))
         return null
       }
     },
-    [fetchTimesheets],
+    [createTimesheetMutation],
   )
 
   const submitTimesheet = useCallback(
     async (id: number): Promise<boolean> => {
       try {
-        await timesheetService.submitTimesheet(id)
+        await submitTimesheetMutation(id).unwrap()
         toast.success('Timesheet submitted successfully')
-        await fetchTimesheets()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to submit timesheet'))
         return false
       }
     },
-    [fetchTimesheets],
+    [submitTimesheetMutation],
   )
 
   const approveTimesheet = useCallback(
     async (id: number, approverId?: string): Promise<boolean> => {
       try {
-        await timesheetService.approveTimesheet(id, approverId ? { approvedBy: approverId } : undefined)
+        await approveTimesheetMutation({
+          id,
+          body: approverId ? { approvedBy: approverId } : undefined,
+        }).unwrap()
         toast.success('Timesheet approved')
-        await fetchTimesheets()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to approve timesheet'))
         return false
       }
     },
-    [fetchTimesheets],
+    [approveTimesheetMutation],
   )
 
   const rejectTimesheet = useCallback(
     async (id: number, payload: TimesheetRejectRequest): Promise<boolean> => {
       try {
-        await timesheetService.rejectTimesheet(id, payload)
+        await rejectTimesheetMutation({ id, body: payload }).unwrap()
         toast.success('Timesheet rejected')
-        await fetchTimesheets()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to reject timesheet'))
         return false
       }
     },
-    [fetchTimesheets],
+    [rejectTimesheetMutation],
   )
 
   return {
@@ -118,100 +118,76 @@ export function useUserTimesheets(userId: string | null) {
   }
 }
 
-// ── Single timesheet ──────────────────────────────────────────────────────────
+// â”€â”€ Single timesheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function useTimesheet(id: number | null) {
-  const [timesheet, setTimesheet] = useState<TimesheetResponse | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const fetchTimesheet = useCallback(async () => {
-    if (id === null) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await timesheetService.getTimesheetById(id)
-      setTimesheet(data)
-    } catch (err) {
-      setError(getErrorMessage(err, 'Failed to load timesheet'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    fetchTimesheet()
-  }, [fetchTimesheet])
-
-  return { timesheet, isLoading, error, fetchTimesheet, setTimesheet }
+  const {
+    data: timesheet = null,
+    isLoading,
+    error: queryError,
+    refetch: fetchTimesheet,
+  } = useGetTimesheetByIdQuery(id!, { skip: id === null })
+  const error = queryError ? getErrorMessage(queryError, 'Failed to load timesheet') : null
+  return { timesheet, isLoading, error, fetchTimesheet }
 }
 
-// ── Time entries for a timesheet ───────────────────────────────────────────────
+// â”€â”€ Time entries for a timesheet â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function useTimeEntries(timesheetId: number | null) {
-  const [entries, setEntries] = useState<TimeEntryResponse[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    data: entries = [],
+    isLoading,
+    error: queryError,
+    refetch: fetchEntries,
+  } = useGetEntriesByTimesheetQuery(timesheetId!, {
+    skip: timesheetId === null || Number.isNaN(timesheetId),
+  })
+  const error = queryError ? getErrorMessage(queryError, 'Failed to load time entries') : null
 
-  const fetchEntries = useCallback(async () => {
-    if (timesheetId === null || Number.isNaN(timesheetId)) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await timesheetService.getEntriesByTimesheet(timesheetId)
-      setEntries(data)
-    } catch (err) {
-      setError(getErrorMessage(err, 'Failed to load time entries'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [timesheetId])
-
-  useEffect(() => {
-    fetchEntries()
-  }, [fetchEntries])
+  const [createTimeEntryMutation] = useCreateTimeEntryMutation()
+  const [updateTimeEntryMutation] = useUpdateTimeEntryMutation()
+  const [deleteTimeEntryMutation] = useDeleteTimeEntryMutation()
 
   const createEntry = useCallback(
     async (payload: TimeEntryCreateRequest): Promise<TimeEntryResponse | null> => {
       try {
-        const entry = await timesheetService.createTimeEntry(payload)
+        const entry = await createTimeEntryMutation(payload).unwrap()
         toast.success('Time entry saved')
-        await fetchEntries()
         return entry
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to save time entry'))
         return null
       }
     },
-    [fetchEntries],
+    [createTimeEntryMutation],
   )
 
   const updateEntry = useCallback(
     async (id: number, payload: TimeEntryUpdateRequest): Promise<boolean> => {
+      if (!timesheetId) return false
       try {
-        await timesheetService.updateTimeEntry(id, payload)
+        await updateTimeEntryMutation({ id, body: payload, timesheetId }).unwrap()
         toast.success('Entry updated')
-        await fetchEntries()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to update entry'))
         return false
       }
     },
-    [fetchEntries],
+    [updateTimeEntryMutation, timesheetId],
   )
 
   const deleteEntry = useCallback(
     async (id: number): Promise<boolean> => {
+      if (!timesheetId) return false
       try {
-        await timesheetService.deleteTimeEntry(id)
+        await deleteTimeEntryMutation({ id, timesheetId }).unwrap()
         toast.success('Entry deleted')
-        await fetchEntries()
         return true
       } catch (err) {
         toast.error(getErrorMessage(err, 'Failed to delete entry'))
         return false
       }
     },
-    [fetchEntries],
+    [deleteTimeEntryMutation, timesheetId],
   )
 
   return { entries, isLoading, error, fetchEntries, createEntry, updateEntry, deleteEntry }

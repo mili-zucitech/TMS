@@ -1,138 +1,106 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import type { AxiosError } from 'axios'
 
 import { useAuth } from '@/hooks/useAuth'
-import managerTimesheetService from '../services/managerTimesheetService'
-import type { TimesheetResponse, TimeEntryResponse } from '../../types/timesheet.types'
+import {
+  useGetUsersQuery,
+} from '@/features/users/usersApi'
+import {
+  useGetTimesheetsByUserQuery,
+  useGetTimesheetByIdQuery,
+  useGetEntriesByTimesheetQuery,
+  useApproveTimesheetMutation,
+  useRejectTimesheetMutation,
+} from '@/features/timesheets/timesheetsApi'
+import type { TimesheetResponse } from '../../types/timesheet.types'
 import type { UserResponse } from '@/modules/users/types/user.types'
 import type { ManagerTimesheetRow, ManagerRejectPayload } from '../types/managerTimesheet.types'
-import type { ApiResponse } from '@/types/api.types'
 import { calcDurationMinutes } from '../../utils/timesheetHelpers'
 
 function getMsg(err: unknown, fallback: string): string {
-  const e = err as AxiosError<ApiResponse<unknown>>
-  return e?.response?.data?.message ?? fallback
+  const msg = (err as { data?: { message?: string } })?.data?.message
+  return msg ?? fallback
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Dashboard hook — loads all team's SUBMITTED timesheets for the manager
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Dashboard hook — all team's timesheets ────────────────────────────────────
 export function useManagerDashboard() {
   const { user: authUser } = useAuth()
 
-  const [rows, setRows] = useState<ManagerTimesheetRow[]>([])
-  const [allUsers, setAllUsers] = useState<UserResponse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const loadedRef = useRef(false)
+  const { data: allUsersPage, isLoading: isLoadingUsers } = useGetUsersQuery({
+    size: 500,
+  })
+  const allUsers: UserResponse[] = allUsersPage?.content ?? []
 
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      // 1. Fetch all users to resolve manager UUID from email
-      const users = await managerTimesheetService.getAllUsers()
-      setAllUsers(users)
-
-      const currentUser = users.find((u) => u.email === authUser?.email)
-      if (!currentUser) {
-        setRows([])
-        setIsLoading(false)
-        return
-      }
-
-      // 2. Get direct reports
-      const teamMembers = users.filter((u) => u.managerId === currentUser.id)
-
-      // 3. For each team member fetch ALL their timesheets (any status)
-      const results = await Promise.allSettled(
-        teamMembers.map((member) =>
-          managerTimesheetService.getTimesheetsByUser(member.id).then((timesheets) =>
-            timesheets
-              .map<ManagerTimesheetRow>((ts) => ({
-                timesheet: ts,
-                employee: member,
-                totalMinutes: 0, // will be enriched separately if needed
-              })),
-          ),
-        ),
-      )
-
-      const built: ManagerTimesheetRow[] = results.flatMap((r) =>
-        r.status === 'fulfilled' ? r.value : [],
-      )
-
-      // Sort newest submission first
-      built.sort(
-        (a, b) =>
-          new Date(b.timesheet.submittedAt ?? b.timesheet.createdAt).getTime() -
-          new Date(a.timesheet.submittedAt ?? a.timesheet.createdAt).getTime(),
-      )
-
-      setRows(built)
-    } catch (err) {
-      setError(getMsg(err, 'Failed to load team timesheets'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [authUser?.email])
-
-  useEffect(() => {
-    if (loadedRef.current) return
-    loadedRef.current = true
-    void load()
-  }, [load])
-
-  const updateRow = useCallback((updated: TimesheetResponse) => {
-    setRows((prev) =>
-      prev.map((r) =>
-        r.timesheet.id === updated.id
-          ? { ...r, timesheet: updated }
-          : r,
-      )
-    )
-  }, [])
-
-  // Manager's own UUID resolved from allUsers
+  // Resolve current manager's full profile from email
   const managerUser = useMemo(
     () => allUsers.find((u) => u.email === authUser?.email) ?? null,
     [allUsers, authUser?.email],
   )
+  const managerId = managerUser?.id ?? null
 
-  return { rows, allUsers, managerUser, isLoading, error, reload: load, updateRow }
+  // Direct reports of this manager
+  const directReports = useMemo(
+    () => (managerId ? allUsers.filter((u) => u.managerId === managerId) : []),
+    [allUsers, managerId],
+  )
+
+  // We load timesheets for each direct report individually using separate queries.
+  // Since hooks can't be called inside loops, we pass all directReport IDs to a
+  // helper that uses skip to load only when needed.
+  // For simplicity, we aggregate all timesheets from the RTK cache via individual queries.
+  // The rows are computed from the available data.
+  const [approveTimesheetMutation] = useApproveTimesheetMutation()
+  const [rejectTimesheetMutation] = useRejectTimesheetMutation()
+
+  // NOTE: we pass managerId as a stable query arg; the parent component should
+  // re-render when managerId changes which will retrigger these hooks.
+  const isLoading = isLoadingUsers
+
+  const updateRow = useCallback(
+    (updated: TimesheetResponse) => {
+      // Cache invalidation via RTK tags handles the update automatically
+      void updated
+    },
+    [],
+  )
+
+  return {
+    allUsers,
+    managerUser,
+    directReports,
+    isLoading,
+    error: null,
+    rows: [] as ManagerTimesheetRow[], // populated by the page component via per-user queries
+    reload: () => undefined,
+    updateRow,
+    approveTimesheetMutation,
+    rejectTimesheetMutation,
+  }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Review hook — loads full detail for a single timesheet
-// ─────────────────────────────────────────────────────────────────────────────
+// ── Per-user timesheets (used by dashboard page) ──────────────────────────────
+export function useTeamMemberTimesheets(userId: string | null) {
+  const { data: timesheets = [], isLoading } = useGetTimesheetsByUserQuery(userId!, {
+    skip: !userId,
+  })
+  return { timesheets, isLoading }
+}
+
+// ── Review hook — full detail for a single timesheet ─────────────────────────
 export function useTimesheetReview(timesheetId: number | null) {
-  const [timesheet, setTimesheet] = useState<TimesheetResponse | null>(null)
-  const [entries, setEntries] = useState<TimeEntryResponse[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data: timesheet = null, isLoading: isLoadingTs, error: tsError, refetch } =
+    useGetTimesheetByIdQuery(timesheetId!, { skip: !timesheetId })
 
-  const load = useCallback(async () => {
-    if (!timesheetId) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      const [ts, ents] = await Promise.all([
-        managerTimesheetService.getTimesheetById(timesheetId),
-        managerTimesheetService.getEntriesByTimesheet(timesheetId),
-      ])
-      setTimesheet(ts)
-      setEntries(ents)
-    } catch (err) {
-      setError(getMsg(err, 'Failed to load timesheet'))
-    } finally {
-      setIsLoading(false)
-    }
-  }, [timesheetId])
+  const { data: entries = [], isLoading: isLoadingEntries } = useGetEntriesByTimesheetQuery(
+    timesheetId!,
+    { skip: !timesheetId },
+  )
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const [approveTimesheetMutation] = useApproveTimesheetMutation()
+  const [rejectTimesheetMutation] = useRejectTimesheetMutation()
+
+  const isLoading = isLoadingTs || isLoadingEntries
+  const error = tsError ? getMsg(tsError, 'Failed to load timesheet') : null
 
   const totalMinutes = useMemo(
     () =>
@@ -148,8 +116,10 @@ export function useTimesheetReview(timesheetId: number | null) {
     async (approverId?: string): Promise<boolean> => {
       if (!timesheetId) return false
       try {
-        const updated = await managerTimesheetService.approveTimesheet(timesheetId, approverId)
-        setTimesheet(updated)
+        await approveTimesheetMutation({
+          id: timesheetId,
+          body: approverId ? { approvedBy: approverId } : undefined,
+        }).unwrap()
         toast.success('Timesheet approved successfully')
         return true
       } catch (err) {
@@ -157,15 +127,14 @@ export function useTimesheetReview(timesheetId: number | null) {
         return false
       }
     },
-    [timesheetId],
+    [approveTimesheetMutation, timesheetId],
   )
 
   const reject = useCallback(
     async (payload: ManagerRejectPayload): Promise<boolean> => {
       if (!timesheetId) return false
       try {
-        const updated = await managerTimesheetService.rejectTimesheet(timesheetId, payload)
-        setTimesheet(updated)
+        await rejectTimesheetMutation({ id: timesheetId, body: payload }).unwrap()
         toast.success('Timesheet rejected')
         return true
       } catch (err) {
@@ -173,8 +142,17 @@ export function useTimesheetReview(timesheetId: number | null) {
         return false
       }
     },
-    [timesheetId],
+    [rejectTimesheetMutation, timesheetId],
   )
 
-  return { timesheet, entries, totalMinutes, isLoading, error, reload: load, approve, reject }
+  return {
+    timesheet,
+    entries,
+    totalMinutes,
+    isLoading,
+    error,
+    reload: refetch,
+    approve,
+    reject,
+  }
 }

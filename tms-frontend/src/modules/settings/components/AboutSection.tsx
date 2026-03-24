@@ -2,6 +2,7 @@ import { Info } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/hooks/useAuth'
+import { config } from '@/config/env'
 
 interface InfoRowProps { label: string; value: string }
 function InfoRow({ label, value }: InfoRowProps) {
@@ -32,8 +33,8 @@ export function AboutSection() {
           <div className="rounded-xl border border-border px-4">
             <InfoRow label="Application"  value="Enterprise Timesheet Management System" />
             <InfoRow label="Version"      value="1.0.0" />
-            <InfoRow label="Environment"  value={import.meta.env.MODE === 'production' ? 'Production' : 'Development'} />
-            <InfoRow label="API Base URL" value={import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080/api/v1'} />
+            <InfoRow label="Environment"  value={config.isProd ? 'Production' : 'Development'} />
+            <InfoRow label="API Base URL" value={config.apiBaseUrl} />
           </div>
         </div>
 

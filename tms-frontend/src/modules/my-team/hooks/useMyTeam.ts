@@ -1,7 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useMemo } from 'react'
 import type { UserResponse } from '@/modules/users/types/user.types'
-import myTeamService from '../services/myTeamService'
-import userModuleService from '@/modules/users/services/userService'
+import {
+  useGetUserByIdQuery,
+  useGetUsersQuery,
+} from '@/features/users/usersApi'
+import {
+  useGetTeamMembersQuery,
+  useGetDepartmentMembersQuery,
+} from '@/features/myteam/myTeamApi'
 
 /**
  * Fetching strategy per role:
@@ -12,64 +18,64 @@ import userModuleService from '@/modules/users/services/userService'
  *  - HR / EMPLOYEE  : all users in the same department as the logged-in user
  */
 export function useMyTeam(userId: string | null, role: string | null) {
-  const [members, setMembers] = useState<UserResponse[]>([])
-  const [directReportIds, setDirectReportIds] = useState<Set<string>>(new Set())
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [context, setContext] = useState<'team' | 'department' | 'both'>('team')
+  const isManager = role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR'
+  const isAdmin = role === 'ADMIN'
+  const isEmployee = !isAdmin && !isManager
 
-  const fetchTeam = useCallback(async () => {
-    if (!userId || !role) return
-    setIsLoading(true)
-    setError(null)
-    try {
-      if (role === 'ADMIN') {
-        setContext('team')
-        setDirectReportIds(new Set())
-        const data = await myTeamService.getTeamMembers(userId)
-        setMembers(data)
-      } else if (role === 'MANAGER' || role === 'HR_MANAGER' || role === 'DIRECTOR') {
-        // Fetch direct reports + own profile (for departmentId) in parallel
-        const [directReports, self] = await Promise.all([
-          myTeamService.getTeamMembers(userId),
-          userModuleService.getUserById(userId),
-        ])
-        const drSet = new Set(directReports.map((u) => u.id))
-        setDirectReportIds(drSet)
+  const { data: teamMembers = [], isLoading: isLoadingTeam } = useGetTeamMembersQuery(
+    userId!,
+    { skip: !userId || isEmployee },
+  )
 
-        if (self.departmentId) {
-          setContext('both')
-          const deptMembers = await myTeamService.getDepartmentMembers(self.departmentId)
-          // Merge: direct reports first, then remaining dept colleagues (excluding self)
-          const deptOnly = deptMembers.filter((m) => m.id !== userId && !drSet.has(m.id))
-          setMembers([...directReports, ...deptOnly])
-        } else {
-          setContext('team')
-          setMembers(directReports)
-        }
-      } else {
-        // HR and EMPLOYEE: fetch own profile first to get departmentId
-        const self = await userModuleService.getUserById(userId)
-        setDirectReportIds(new Set())
-        if (!self.departmentId) {
-          setMembers([])
-          setContext('department')
-          return
-        }
-        setContext('department')
-        const data = await myTeamService.getDepartmentMembers(self.departmentId)
-        setMembers(data.filter((m) => m.id !== userId))
-      }
-    } catch {
-      setError('Failed to load team members')
-    } finally {
-      setIsLoading(false)
+  const { data: selfProfile, isLoading: isLoadingSelf } = useGetUserByIdQuery(
+    userId!,
+    { skip: !userId || isAdmin },
+  )
+
+  const departmentId = selfProfile?.departmentId ?? null
+
+  const { data: deptMembers = [], isLoading: isLoadingDept } = useGetDepartmentMembersQuery(
+    departmentId!,
+    { skip: departmentId === null || isAdmin },
+  )
+
+  const { refetch: fetchTeam } = useGetUsersQuery(undefined, { skip: !isAdmin })
+
+  const { members, directReportIds, context } = useMemo<{
+    members: UserResponse[]
+    directReportIds: Set<string>
+    context: 'team' | 'department' | 'both'
+  }>(() => {
+    if (!userId || !role) return { members: [], directReportIds: new Set(), context: 'team' }
+
+    if (isAdmin) {
+      // Admin: direct reports (users whose managerId = userId) from the user list
+      const drSet = new Set(teamMembers.map((u) => u.id))
+      return { members: teamMembers, directReportIds: drSet, context: 'team' }
     }
-  }, [userId, role])
 
-  useEffect(() => {
-    fetchTeam()
-  }, [fetchTeam])
+    if (isManager) {
+      const drSet = new Set(teamMembers.map((u) => u.id))
+      if (departmentId) {
+        const deptOnly = deptMembers.filter((m) => m.id !== userId && !drSet.has(m.id))
+        return {
+          members: [...teamMembers, ...deptOnly],
+          directReportIds: drSet,
+          context: 'both',
+        }
+      }
+      return { members: teamMembers, directReportIds: drSet, context: 'team' }
+    }
 
-  return { members, directReportIds, isLoading, error, fetchTeam, context }
+    // HR / Employee: department colleagues (excluding self)
+    return {
+      members: deptMembers.filter((m) => m.id !== userId),
+      directReportIds: new Set(),
+      context: 'department',
+    }
+  }, [userId, role, isAdmin, isManager, teamMembers, deptMembers, departmentId])
+
+  const isLoading = isLoadingTeam || isLoadingSelf || isLoadingDept
+
+  return { members, directReportIds, isLoading, error: null, context, fetchTeam }
 }

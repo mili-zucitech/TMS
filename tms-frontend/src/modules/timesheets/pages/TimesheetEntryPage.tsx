@@ -85,7 +85,7 @@ export default function TimesheetEntryPage() {
 
   const parsed = id ? parseInt(id, 10) : NaN
   const timesheetId = Number.isNaN(parsed) ? null : parsed
-  const { timesheet, isLoading: tsLoading, error: tsError, fetchTimesheet, setTimesheet } =
+  const { timesheet, isLoading: tsLoading, error: tsError, fetchTimesheet } =
     useTimesheet(timesheetId)
   const { entries, isLoading: entriesLoading, fetchEntries, createEntry, updateEntry, deleteEntry } =
     useTimeEntries(timesheetId)
@@ -296,7 +296,8 @@ export default function TimesheetEntryPage() {
     try {
       const updated = await timesheetService.submitTimesheet(timesheetId)
       toast.success('Timesheet submitted successfully!')
-      setTimesheet(updated)
+      void updated
+      void fetchTimesheet()
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to submit timesheet'))
     } finally {

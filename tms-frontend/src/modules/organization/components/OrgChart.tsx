@@ -226,7 +226,7 @@ function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
       zoomOnPinch
       panOnDrag
       panOnScroll
-      panOnScrollMode="free"
+      panOnScrollMode={'free' as never}
       panOnScrollSpeed={1.5}
       proOptions={{ hideAttribution: true }}
       className="rounded-xl"

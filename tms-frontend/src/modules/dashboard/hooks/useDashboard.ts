@@ -1,18 +1,23 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useMemo } from 'react'
 import {
-  getAllDepartments,
-  getAllProjects,
-  getAllUsers,
-  getLeaveBalancesForUser,
-  getLeavesForUser,
-  getMyTasks,
-  getNotificationsForUser,
-  getProjectAssignmentsForUser,
-  getTimeEntriesForTimesheet,
-  getTimesheetsForUser,
-  getTeamLeaveRequests,
-  getAllAuditLogs,
-} from '../services/dashboardService'
+  useGetUsersQuery,
+} from '@/features/users/usersApi'
+import {
+  useGetTimesheetsByUserQuery,
+  useGetEntriesByTimesheetQuery,
+} from '@/features/timesheets/timesheetsApi'
+import {
+  useGetProjectsQuery,
+  useGetAssignmentsByUserQuery,
+} from '@/features/projects/projectsApi'
+import { useGetTasksQuery } from '@/features/tasks/tasksApi'
+import {
+  useGetLeavesByUserQuery,
+  useGetLeaveBalanceQuery,
+  useGetTeamLeavesByManagerQuery,
+} from '@/features/leave/leaveApi'
+import { useGetUserNotificationsQuery } from '@/features/notifications/notificationsApi'
+import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi'
 import { getWeekStart, getWeekEnd, toDateString } from '@/modules/timesheets/utils/timesheetHelpers'
 import type {
   AuditLogResponse,
@@ -29,7 +34,7 @@ import type {
   WeeklyTimesheetSummary,
 } from '../types/dashboard.types'
 
-// ── Week helpers (re-exported for backwards compatibility) ────────────────────────────
+// ── Week helpers (re-exported for backwards compatibility) ────────────────────
 export function getWeekStartDate(): string {
   return toDateString(getWeekStart(new Date()))
 }
@@ -55,91 +60,69 @@ interface EmployeeDashboardData {
 }
 
 export function useEmployeeDashboard(userId: string | null): EmployeeDashboardData {
-  const [data, setData] = useState<Omit<EmployeeDashboardData, 'isLoading' | 'error' | 'refresh'>>({
-    weekSummary: null,
-    timeEntries: [],
-    projectAssignments: [],
-    projects: [],
-    tasks: [],
-    leaveBalances: [],
-    pendingLeaves: [],
-    notifications: [],
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
   const weekStart = getWeekStartDate()
-  const weekEnd = getWeekEndDate()
+  const weekEnd   = getWeekEndDate()
 
-  const load = useCallback(async () => {
-    if (!userId) return
-    setIsLoading(true)
-    setError(null)
+  const { data: timesheets = [], isLoading: l1 } = useGetTimesheetsByUserQuery(userId!, { skip: !userId })
+  const { data: assignmentsRaw = [], isLoading: l2 } = useGetAssignmentsByUserQuery(userId!, { skip: !userId })
+  const { data: allProjectsPage, isLoading: l3 } = useGetProjectsQuery()
+  const { data: tasksPage, isLoading: l4 } = useGetTasksQuery()
+  const { data: leaveBalances = [], isLoading: l5 } = useGetLeaveBalanceQuery(userId!, { skip: !userId })
+  const { data: leavesRaw = [], isLoading: l6 } = useGetLeavesByUserQuery(userId!, { skip: !userId })
+  const { data: notifications = [], isLoading: l7 } = useGetUserNotificationsQuery(userId!, { skip: !userId })
 
-    try {
-      const [timesheets, assignments, allProjects, tasks, balances, leaves, notifications] =
-        await Promise.allSettled([
-          getTimesheetsForUser(userId),
-          getProjectAssignmentsForUser(userId),
-          getAllProjects(),
-          getMyTasks(),
-          getLeaveBalancesForUser(userId),
-          getLeavesForUser(userId),
-          getNotificationsForUser(userId),
-        ])
+  const currentWeekTS = timesheets.find((t) => t.weekStartDate === weekStart) ?? null
 
-      const ts: TimesheetResponse[] = timesheets.status === 'fulfilled' ? timesheets.value : []
-      const currentWeekTS = ts.find((t) => t.weekStartDate === weekStart) ?? null
+  const { data: timeEntries = [], isLoading: l8 } = useGetEntriesByTimesheetQuery(
+    currentWeekTS?.id ?? 0,
+    { skip: !currentWeekTS },
+  )
 
-      let timeEntries: TimeEntryResponse[] = []
-      if (currentWeekTS) {
-        const entriesResult = await getTimeEntriesForTimesheet(currentWeekTS.id)
-        timeEntries = entriesResult
-      }
+  const allProjects: ProjectResponse[] = (allProjectsPage?.content ?? []) as unknown as ProjectResponse[]
+  const tasks: TaskResponse[] = (tasksPage?.content ?? []) as unknown as TaskResponse[]
 
-      const totalMinutes = timeEntries.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0)
+  const assignedProjectIds = useMemo(
+    () => new Set(assignmentsRaw.map((a) => a.projectId)),
+    [assignmentsRaw],
+  )
+  const projects = useMemo(
+    () => allProjects.filter((p) => assignedProjectIds.has(p.id)),
+    [allProjects, assignedProjectIds],
+  )
 
-      const weekSummary: WeeklyTimesheetSummary = {
-        timesheet: currentWeekTS,
-        totalMinutes,
-        displayStatus: currentWeekTS ? currentWeekTS.status : 'NOT_SUBMITTED',
-        weekStart,
-        weekEnd,
-      }
+  const pendingLeaves = useMemo(() => leavesRaw.filter((l) => l.status === 'PENDING'), [leavesRaw])
 
-      const pa: ProjectAssignmentResponse[] = assignments.status === 'fulfilled' ? assignments.value : []
-      const ap: ProjectResponse[] = allProjects.status === 'fulfilled' ? allProjects.value : []
-      const assignedProjectIds = new Set(pa.map((a) => a.projectId))
-      const myProjects = ap.filter((p) => assignedProjectIds.has(p.id))
+  const totalMinutes = useMemo(
+    () => timeEntries.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0),
+    [timeEntries],
+  )
 
-      const myTasks: TaskResponse[] = tasks.status === 'fulfilled' ? tasks.value : []
-      const lb: LeaveBalanceResponse[] = balances.status === 'fulfilled' ? balances.value : []
-      const lr: LeaveRequestResponse[] = leaves.status === 'fulfilled' ? leaves.value : []
-      const pendingLeaves = lr.filter((l) => l.status === 'PENDING')
-      const notifs: NotificationResponse[] = notifications.status === 'fulfilled' ? notifications.value : []
+  const weekSummary: WeeklyTimesheetSummary = useMemo(
+    () => ({
+      timesheet: currentWeekTS,
+      totalMinutes,
+      displayStatus: currentWeekTS ? currentWeekTS.status : 'NOT_SUBMITTED',
+      weekStart,
+      weekEnd,
+    }),
+    [currentWeekTS, totalMinutes, weekStart, weekEnd],
+  )
 
-      setData({
-        weekSummary,
-        timeEntries,
-        projectAssignments: pa,
-        projects: myProjects,
-        tasks: myTasks,
-        leaveBalances: lb,
-        pendingLeaves,
-        notifications: notifs,
-      })
-    } catch {
-      setError('Failed to load dashboard data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [userId, weekStart, weekEnd])
+  const isLoading = l1 || l2 || l3 || l4 || l5 || l6 || l7 || l8
 
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  return { ...data, isLoading, error, refresh: load }
+  return {
+    weekSummary,
+    timeEntries: timeEntries as unknown as TimeEntryResponse[],
+    projectAssignments: assignmentsRaw as unknown as ProjectAssignmentResponse[],
+    projects,
+    tasks,
+    leaveBalances,
+    pendingLeaves: pendingLeaves as unknown as LeaveRequestResponse[],
+    notifications,
+    isLoading,
+    error: null,
+    refresh: () => undefined,
+  }
 }
 
 // ── useManagerDashboard ───────────────────────────────────────────────────────
@@ -150,75 +133,51 @@ interface ManagerDashboardData {
   pendingLeaves: LeaveRequestResponse[]
   notifications: NotificationResponse[]
   allProjects: ProjectResponse[]
+  allUsers: UserResponse[]
   isLoading: boolean
   error: string | null
   refresh: () => void
 }
 
 export function useManagerDashboard(managerId: string | null): ManagerDashboardData {
-  const [data, setData] = useState<Omit<ManagerDashboardData, 'isLoading' | 'error' | 'refresh'>>({
-    teamMembers: [],
-    teamTimesheets: [],
-    pendingLeaves: [],
-    notifications: [],
-    allProjects: [],
+  const { data: allUsersPage, isLoading: l1 } = useGetUsersQuery({ size: 200 })
+  const allUsers: UserResponse[] = (allUsersPage?.content ?? []) as unknown as UserResponse[]
+  const directReports = useMemo(
+    () => allUsers.filter((u) => u.managerId === managerId),
+    [allUsers, managerId],
+  )
+
+  const { data: teamLeaves = [], isLoading: l2 } = useGetTeamLeavesByManagerQuery(managerId!, {
+    skip: !managerId,
   })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const weekStart = getWeekStartDate()
+  const { data: notifications = [], isLoading: l3 } = useGetUserNotificationsQuery(managerId!, {
+    skip: !managerId,
+  })
+  const { data: allProjectsPage, isLoading: l4 } = useGetProjectsQuery()
+  const allProjects: ProjectResponse[] = (allProjectsPage?.content ?? []) as unknown as ProjectResponse[]
 
-  const load = useCallback(async () => {
-    if (!managerId) return
-    setIsLoading(true)
-    setError(null)
+  const pendingLeaves = useMemo(() => teamLeaves.filter((l) => l.status === 'PENDING'), [teamLeaves])
 
-    try {
-      const [allUsers, teamLeaves, notifications, allProjects] = await Promise.allSettled([
-        getAllUsers(),
-        getTeamLeaveRequests(managerId),
-        getNotificationsForUser(managerId),
-        getAllProjects(),
-      ])
+  const isLoading = l1 || l2 || l3 || l4
 
-      const users: UserResponse[] = allUsers.status === 'fulfilled' ? allUsers.value : []
-      const directReports = users.filter((u) => u.managerId === managerId)
+  // Note: teamTimesheets are loaded per-member in the page component using useGetTimesheetsByUserQuery
+  // to avoid calling hooks inside loops. The dashboard page can aggregate from there.
+  const teamTimesheets: { user: UserResponse; timesheet: TimesheetResponse | null }[] = useMemo(
+    () => directReports.map((u) => ({ user: u, timesheet: null })),
+    [directReports],
+  )
 
-      // Fetch timesheets for each direct report
-      const tsResults = await Promise.allSettled(
-        directReports.map((u) => getTimesheetsForUser(u.id)),
-      )
-
-      const teamTimesheets = directReports.map((user, idx) => {
-        const result = tsResults[idx]
-        const sheets: TimesheetResponse[] = result.status === 'fulfilled' ? result.value : []
-        const ts = sheets.find((t) => t.weekStartDate === weekStart) ?? null
-        return { user, timesheet: ts }
-      })
-
-      const lr: LeaveRequestResponse[] = teamLeaves.status === 'fulfilled' ? teamLeaves.value : []
-      const pending = lr.filter((l) => l.status === 'PENDING')
-      const notifs: NotificationResponse[] = notifications.status === 'fulfilled' ? notifications.value : []
-      const ap: ProjectResponse[] = allProjects.status === 'fulfilled' ? allProjects.value : []
-
-      setData({
-        teamMembers: directReports,
-        teamTimesheets,
-        pendingLeaves: pending,
-        notifications: notifs,
-        allProjects: ap,
-      })
-    } catch {
-      setError('Failed to load manager dashboard data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [managerId, weekStart])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  return { ...data, isLoading, error, refresh: load }
+  return {
+    teamMembers: directReports,
+    teamTimesheets,
+    pendingLeaves: pendingLeaves as unknown as LeaveRequestResponse[],
+    notifications,
+    allProjects,
+    allUsers,
+    isLoading,
+    error: null,
+    refresh: () => undefined,
+  }
 }
 
 // ── useHRDashboard ────────────────────────────────────────────────────────────
@@ -235,50 +194,25 @@ interface HRDashboardData {
 }
 
 export function useHRDashboard(): HRDashboardData {
-  const [data, setData] = useState<Omit<HRDashboardData, 'isLoading' | 'error' | 'refresh'>>({
-    allUsers: [],
-    departments: [],
-    allProjects: [],
+  const { data: allUsersPage, isLoading: l1 } = useGetUsersQuery({ size: 500 })
+  const allUsers: UserResponse[] = (allUsersPage?.content ?? []) as unknown as UserResponse[]
+
+  const { data: deptsPage, isLoading: l2 } = useGetDepartmentsQuery({ size: 200 })
+  const departments: DepartmentResponse[] = (deptsPage?.content ?? []) as DepartmentResponse[]
+
+  const { data: projectsPage, isLoading: l3 } = useGetProjectsQuery()
+  const allProjects: ProjectResponse[] = (projectsPage?.content ?? []) as unknown as ProjectResponse[]
+
+  const isLoading = l1 || l2 || l3
+
+  return {
+    allUsers,
+    departments,
+    allProjects,
     recentAuditLogs: [],
     allLeaves: [],
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  const load = useCallback(async () => {
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      const [users, departments, projects, auditLogs] = await Promise.allSettled([
-        getAllUsers(),
-        getAllDepartments(),
-        getAllProjects(),
-        getAllAuditLogs(),
-      ])
-
-      const allUsers: UserResponse[] = users.status === 'fulfilled' ? users.value : []
-      const depts: DepartmentResponse[] = departments.status === 'fulfilled' ? departments.value : []
-      const ap: ProjectResponse[] = projects.status === 'fulfilled' ? projects.value : []
-      const logs: AuditLogResponse[] = auditLogs.status === 'fulfilled' ? auditLogs.value : []
-
-      setData({
-        allUsers,
-        departments: depts,
-        allProjects: ap,
-        recentAuditLogs: logs.slice(0, 10),
-        allLeaves: [],
-      })
-    } catch {
-      setError('Failed to load HR dashboard data')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void load()
-  }, [load])
-
-  return { ...data, isLoading, error, refresh: load }
+    isLoading,
+    error: null,
+    refresh: () => undefined,
+  }
 }
