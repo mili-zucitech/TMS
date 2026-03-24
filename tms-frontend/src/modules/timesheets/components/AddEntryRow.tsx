@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Plus, X, Clock, Check, AlignLeft } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -50,9 +50,12 @@ export function AddEntryRow({
   const [endTime, setEndTime] = useState('')
   const [description, setDescription] = useState('')
 
-  // Reset form when opening
+  // Reset form only when the panel transitions from closed → open.
+  // Excluding `projects` from deps prevents mid-entry resets caused by
+  // parent re-renders that produce a new array reference.
+  const wasOpenRef = useRef(false)
   useEffect(() => {
-    if (open) {
+    if (open && !wasOpenRef.current) {
       setProjectId(projects[0]?.id ?? '')
       setTaskId('')
       setTaskNote('')
@@ -61,7 +64,8 @@ export function AddEntryRow({
       setEndTime('')
       setDescription('')
     }
-  }, [open, projects])
+    wasOpenRef.current = open
+  }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredTasks = tasks.filter((t) => t.projectId === Number(projectId))
   const durationMinutes =

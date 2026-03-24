@@ -190,11 +190,11 @@ export default function ManagerTimesheetDashboardPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Employee</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Week</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Submitted</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide w-32">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Employee</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Week</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden lg:table-cell">Submitted</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-32">Actions</th>
               </tr>
             </thead>
             <tbody>

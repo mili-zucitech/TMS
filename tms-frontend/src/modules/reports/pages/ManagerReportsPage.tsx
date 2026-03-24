@@ -32,9 +32,9 @@ type TabId = (typeof TABS)[number]['id']
 // ── Team work hours columns ───────────────────────────────────────────────────
 const teamHoursCols: Column<EmployeeHoursEntry>[] = [
   { key: 'employeeName',  header: 'Team Member', sortable: true },
-  { key: 'totalHours',    header: 'Total hrs',   sortable: true, align: 'right',
+  { key: 'totalHours',    header: 'Total Hours',   sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'weekStartDate', header: 'Week of',     sortable: true },
+  { key: 'weekStartDate', header: 'Week Of',     sortable: true },
 ]
 
 // ── Leave columns ─────────────────────────────────────────────────────────────

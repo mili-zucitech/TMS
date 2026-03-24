@@ -530,23 +530,23 @@ function ManagerTimesheetReminderContent({ managerId }: { managerId: string }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
                     Employee
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
                     Designation
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
                     Submitted At
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">
                     Last Updated
                   </th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                    Action
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">
+                    Actions
                   </th>
                 </tr>
               </thead>

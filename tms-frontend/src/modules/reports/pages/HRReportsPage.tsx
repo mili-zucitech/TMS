@@ -34,7 +34,7 @@ type TabId = (typeof TABS)[number]['id']
 const workHoursCols: Column<EmployeeHoursEntry>[] = [
   { key: 'employeeName', header: 'Employee',   sortable: true },
   { key: 'department',   header: 'Department', sortable: true },
-  { key: 'totalHours',   header: 'Total hrs',  sortable: true, align: 'right',
+  { key: 'totalHours',   header: 'Total Hours',  sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
 ]
 
@@ -54,9 +54,9 @@ const leaveCols: Column<LeaveReportEntry>[] = [
 const deptCols: Column<DepartmentProductivityEntry>[] = [
   { key: 'departmentName',      header: 'Department',       sortable: true },
   { key: 'employeeCount',       header: 'Employees',        sortable: true, align: 'right' },
-  { key: 'totalHours',          header: 'Total hrs',        sortable: true, align: 'right',
+  { key: 'totalHours',          header: 'Total Hours',        sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
-  { key: 'avgHoursPerEmployee', header: 'Avg hrs/employee', sortable: true, align: 'right',
+  { key: 'avgHoursPerEmployee', header: 'Avg Hours/Employee', sortable: true, align: 'right',
     render: (v) => <span className="font-mono">{Number(v).toFixed(1)}</span> },
   { key: 'utilizationPercent',   header: 'Utilization',       sortable: true, align: 'right',
     render: (v) => (

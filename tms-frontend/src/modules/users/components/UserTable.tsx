@@ -285,7 +285,7 @@ export function UserTable({
                   {hg.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap"
+                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
                     >
                       {flexRender(header.column.columnDef.header, header.getContext())}
                     </th>

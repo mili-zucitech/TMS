@@ -204,12 +204,12 @@ export function TimesheetDetailsView({
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border/50 bg-muted/10">
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Project</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Task</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Start</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">End</th>
-                        <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground uppercase">Duration</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Description</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Project</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Task</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Start</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">End</th>
+                        <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground">Duration</th>
+                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Description</th>
                       </tr>
                     </thead>
                     <tbody>

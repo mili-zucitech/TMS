@@ -50,14 +50,17 @@ export function TimeEntryRow({
   const [endTime, setEndTime] = useState(stripSeconds(entry.endTime))
   const [description, setDescription] = useState(entry.description ?? '')
 
-  // Reset editable fields when entry changes
+  // Sync editable fields from the entry prop, but only when NOT actively
+  // editing — prevents RTK Query cache refetches from wiping in-progress
+  // edits mid-entry.
   useEffect(() => {
+    if (isEditing) return
     setProjectId(entry.projectId)
     setTaskId(entry.taskId ?? '')
     setStartTime(stripSeconds(entry.startTime))
     setEndTime(stripSeconds(entry.endTime))
     setDescription(entry.description ?? '')
-  }, [entry])
+  }, [entry, isEditing])
 
   const filteredTasks = tasks.filter((t) => t.projectId === projectId)
   const durationMinutes =

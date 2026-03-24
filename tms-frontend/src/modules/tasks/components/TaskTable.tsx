@@ -301,7 +301,7 @@ export function TaskTable({
                   {hg.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground"
                     >
                       {header.isPlaceholder
                         ? null

@@ -34,9 +34,9 @@ type TabId = (typeof TABS)[number]['id']
 const projectCols: Column<ProjectUtilizationEntry>[] = [
   { key: 'projectName',        header: 'Project',          sortable: true },
   { key: 'activeEmployees',    header: 'Active Employees', sortable: true, align: 'right' },
-  { key: 'allocatedHours',     header: 'Allocated hrs',    sortable: true, align: 'right',
+  { key: 'allocatedHours',     header: 'Allocated Hours',    sortable: true, align: 'right',
     render: (v) => <span className="font-mono">{Number(v).toFixed(0)}</span> },
-  { key: 'loggedHours',        header: 'Logged hrs',       sortable: true, align: 'right',
+  { key: 'loggedHours',        header: 'Logged Hours',       sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(0)}</span> },
   { key: 'utilizationPercent', header: 'Utilization',      sortable: true, align: 'right',
     render: (v) => (
@@ -396,7 +396,7 @@ export default function DirectorReportsPage() {
                 columns={[
                   { key: 'employeeName', header: 'Employee',   sortable: true },
                   { key: 'department',   header: 'Department', sortable: true },
-                  { key: 'totalHours',   header: 'Total hrs',  sortable: true, align: 'right',
+                  { key: 'totalHours',   header: 'Total Hours',  sortable: true, align: 'right',
                     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
                 ]}
                 emptyMessage="No employee hours data available"

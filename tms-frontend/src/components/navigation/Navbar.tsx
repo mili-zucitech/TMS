@@ -15,7 +15,39 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { useUnreadCount, useNotifications } from '@/modules/notifications/hooks/useNotifications'
 import { NotificationDropdown } from '@/modules/notifications/components/NotificationDropdown'
-import { useState } from 'react'
+import { useGetUsersQuery } from '@/features/users/usersApi'
+import { useGetTasksQuery } from '@/features/tasks/tasksApi'
+import { useGetProjectsQuery } from '@/features/projects/projectsApi'
+import { useGetDepartmentsQuery } from '@/features/departments/departmentsApi'
+import { useState, useRef, useEffect, useMemo } from 'react'
+
+// ── Searchable nav items ─────────────────────────────────────
+
+interface SearchItem {
+  path: string
+  label: string
+  section: string
+  roles?: string[]
+}
+
+const SEARCH_ITEMS: SearchItem[] = [
+  { path: '/dashboard', label: 'Dashboard', section: 'Pages' },
+  { path: '/tasks', label: 'Tasks', section: 'Work' },
+  { path: '/timesheets', label: 'Timesheets', section: 'Work' },
+  { path: '/timesheets/manager', label: 'Review Timesheets', section: 'Work', roles: ['ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/timesheets/reminders', label: 'Send Reminders', section: 'Work', roles: ['ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/projects', label: 'Projects', section: 'Work' },
+  { path: '/users', label: 'Users', section: 'People', roles: ['ADMIN', 'HR', 'HR_MANAGER'] },
+  { path: '/leave', label: 'Leave', section: 'People' },
+  { path: '/leave/approvals', label: 'Leave Approvals', section: 'People', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/holidays', label: 'Holidays', section: 'People' },
+  { path: '/my-team', label: 'My Team', section: 'People' },
+  { path: '/organization', label: 'Organization', section: 'People', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/departments', label: 'Departments', section: 'People' },
+  { path: '/reports', label: 'Reports', section: 'Insights', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/notifications', label: 'Notifications', section: 'System' },
+  { path: '/settings', label: 'Settings', section: 'System', roles: ['ADMIN'] },
+]
 
 // ── Page title map ────────────────────────────────────────────
 
@@ -55,6 +87,102 @@ export function AppHeader({ onMobileMenuClick }: AppHeaderProps) {
   const { notifications, markRead, markAllRead } = useNotifications(userId)
   const [notifOpen, setNotifOpen] = useState(false)
 
+  // ── Search state ───────────────────────────────────────────
+  const [query, setQuery] = useState('')
+  const [showResults, setShowResults] = useState(false)
+  const searchRef = useRef<HTMLDivElement>(null)
+
+  const userRole = user?.roleName ?? null
+  const skipSearch = query.trim().length < 2
+  const canViewUsers = userRole !== null && ['ADMIN', 'HR', 'HR_MANAGER'].includes(userRole)
+
+  const { data: usersData } = useGetUsersQuery(undefined, { skip: skipSearch || !canViewUsers })
+  const { data: tasksData } = useGetTasksQuery(undefined, { skip: skipSearch })
+  const { data: projectsData } = useGetProjectsQuery(undefined, { skip: skipSearch })
+  const { data: deptsData } = useGetDepartmentsQuery(undefined, { skip: skipSearch })
+
+  const searchResults = useMemo(() => {
+    if (skipSearch) return { pages: [], users: [], tasks: [], projects: [], departments: [] }
+    const q = query.trim().toLowerCase()
+
+    const pages = SEARCH_ITEMS
+      .filter(item => {
+        const roleAllowed = !item.roles || (userRole !== null && item.roles.includes(userRole))
+        return roleAllowed && (
+          item.label.toLowerCase().includes(q) ||
+          item.path.toLowerCase().includes(q) ||
+          item.section.toLowerCase().includes(q)
+        )
+      })
+      .map(item => ({ path: item.path, label: item.label, sub: item.section, key: item.path }))
+
+    const users = canViewUsers
+      ? (usersData?.content ?? [])
+          .filter(u =>
+            u.name.toLowerCase().includes(q) ||
+            u.email.toLowerCase().includes(q) ||
+            (u.employeeId?.toLowerCase() ?? '').includes(q) ||
+            (u.designation?.toLowerCase() ?? '').includes(q)
+          )
+          .slice(0, 5)
+          .map(u => ({ path: '/users', label: u.name, sub: u.designation ?? u.roleName, key: `user-${u.id}` }))
+      : []
+
+    const tasks = (tasksData?.content ?? [])
+      .filter(t =>
+        t.title.toLowerCase().includes(q) ||
+        (t.taskCode?.toLowerCase() ?? '').includes(q) ||
+        (t.description?.toLowerCase() ?? '').includes(q)
+      )
+      .slice(0, 5)
+      .map(t => ({ path: '/tasks', label: t.title, sub: t.status, key: `task-${t.id}` }))
+
+    const projects = (projectsData?.content ?? [])
+      .filter(p =>
+        p.name.toLowerCase().includes(q) ||
+        (p.projectCode?.toLowerCase() ?? '').includes(q) ||
+        (p.clientName?.toLowerCase() ?? '').includes(q)
+      )
+      .slice(0, 5)
+      .map(p => ({ path: '/projects', label: p.name, sub: p.status, key: `project-${p.id}` }))
+
+    const departments = (deptsData?.content ?? [])
+      .filter(d => d.name.toLowerCase().includes(q))
+      .slice(0, 5)
+      .map(d => ({ path: '/departments', label: d.name, sub: `${d.memberCount ?? 0} members`, key: `dept-${d.id}` }))
+
+    return { pages, users, tasks, projects, departments }
+  }, [query, skipSearch, usersData, tasksData, projectsData, deptsData, userRole, canViewUsers])
+
+  const allResults = [
+    ...searchResults.pages,
+    ...searchResults.users,
+    ...searchResults.tasks,
+    ...searchResults.projects,
+    ...searchResults.departments,
+  ]
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowResults(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      setShowResults(false)
+      setQuery('')
+    } else if (e.key === 'Enter' && allResults.length > 0) {
+      navigate(allResults[0].path)
+      setShowResults(false)
+      setQuery('')
+    }
+  }
+
   const handleLogout = () => {
     logout()
     navigate('/login', { replace: true })
@@ -81,12 +209,15 @@ export function AppHeader({ onMobileMenuClick }: AppHeaderProps) {
       </div>
 
       {/* Search */}
-      <div className="hidden sm:flex relative items-center">
-        <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-        {/* TODO: wire up search — needs a state handler, debounce, and a results popover */}
+      <div ref={searchRef} className="hidden sm:flex relative items-center">
+        <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none z-10" />
         <input
           type="search"
           placeholder="Search…"
+          value={query}
+          onChange={e => { setQuery(e.target.value); setShowResults(true) }}
+          onFocus={() => { if (query.trim()) setShowResults(true) }}
+          onKeyDown={handleSearchKeyDown}
           className={cn(
             'h-9 w-52 rounded-lg border border-input bg-muted/50 pl-8 pr-3',
             'text-sm placeholder:text-muted-foreground',
@@ -94,7 +225,76 @@ export function AppHeader({ onMobileMenuClick }: AppHeaderProps) {
             'transition-all duration-200',
           )}
           aria-label="Search"
+          autoComplete="off"
+          spellCheck={false}
         />
+        {/* Results dropdown */}
+        {showResults && query.trim().length > 0 && (
+          <div className="absolute top-full left-0 mt-1 w-72 rounded-lg border border-border bg-white shadow-lg z-50 overflow-hidden max-h-[420px] overflow-y-auto">
+            {allResults.length > 0 ? (
+              <>
+                {searchResults.pages.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/40">Pages</div>
+                    {searchResults.pages.map(item => (
+                      <button key={item.key} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left" onMouseDown={e => { e.preventDefault(); navigate(item.path); setShowResults(false); setQuery('') }}>
+                        <span className="truncate font-medium flex-1">{item.label}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchResults.users.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/40">People</div>
+                    {searchResults.users.map(item => (
+                      <button key={item.key} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left" onMouseDown={e => { e.preventDefault(); navigate(item.path); setShowResults(false); setQuery('') }}>
+                        <span className="truncate font-medium flex-1">{item.label}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchResults.tasks.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/40">Tasks</div>
+                    {searchResults.tasks.map(item => (
+                      <button key={item.key} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left" onMouseDown={e => { e.preventDefault(); navigate(item.path); setShowResults(false); setQuery('') }}>
+                        <span className="truncate font-medium flex-1">{item.label}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchResults.projects.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/40">Projects</div>
+                    {searchResults.projects.map(item => (
+                      <button key={item.key} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left" onMouseDown={e => { e.preventDefault(); navigate(item.path); setShowResults(false); setQuery('') }}>
+                        <span className="truncate font-medium flex-1">{item.label}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {searchResults.departments.length > 0 && (
+                  <div>
+                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/40">Departments</div>
+                    {searchResults.departments.map(item => (
+                      <button key={item.key} className="flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground text-left" onMouseDown={e => { e.preventDefault(); navigate(item.path); setShowResults(false); setQuery('') }}>
+                        <span className="truncate font-medium flex-1">{item.label}</span>
+                        <span className="text-xs text-muted-foreground shrink-0">{item.sub}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">Press Enter to open first result · Esc to close</div>
+              </>
+            ) : (
+              <div className="px-3 py-2.5 text-sm text-muted-foreground">No results for &quot;{query}&quot;</div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Notification bell */}

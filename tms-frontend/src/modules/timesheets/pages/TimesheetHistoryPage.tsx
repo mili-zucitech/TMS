@@ -118,11 +118,11 @@ export default function TimesheetHistoryPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Week Start</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Week End</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase">Submitted</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Week Start</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Week End</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Status</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Submitted</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody>

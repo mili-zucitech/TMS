@@ -1,7 +1,8 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { UserPlus } from 'lucide-react'
+import { useState } from 'react'
+import { UserPlus, Eye, EyeOff } from 'lucide-react'
 
 import {
   Dialog,
@@ -64,6 +65,7 @@ const selectClass =
 
 // ── Component ─────────────────────────────────────────────────
 export function UserCreateModal({ open, onOpenChange, onSubmit, departments = [], users = [] }: UserCreateModalProps) {
+  const [showPassword, setShowPassword] = useState(false)
   const {
     register,
     handleSubmit,
@@ -160,13 +162,25 @@ export function UserCreateModal({ open, onOpenChange, onSubmit, departments = []
             {/* Password */}
             <div className={cn(fieldClass, 'sm:col-span-2')}>
               <Label htmlFor="password">Password *</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Min. 8 characters"
-                error={!!errors.password}
-                {...register('password')}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Min. 8 characters"
+                  error={!!errors.password}
+                  className="pr-10"
+                  {...register('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
               {errors.password && <p className={errorClass}>{errors.password.message}</p>}
             </div>
 

@@ -560,12 +560,12 @@ export default function TimesheetEntryPage() {
                       {dayEntries.length > 0 && (
                         <thead>
                           <tr className="border-b border-border/50 bg-muted/10">
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-44">Project</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-36">Task</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-28">Start</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-28">End</th>
-                            <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground uppercase w-24">Duration</th>
-                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Description</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-44">Project</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-36">Task</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-28">Start</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground w-28">End</th>
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-muted-foreground w-24">Duration</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Description</th>
                             <th className="px-3 py-2 w-20" />
                           </tr>
                         </thead>

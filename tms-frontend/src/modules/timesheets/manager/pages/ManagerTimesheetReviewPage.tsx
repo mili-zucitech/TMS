@@ -625,12 +625,12 @@ export default function ManagerTimesheetReviewPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b border-border/50 bg-muted/10">
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-44">Project</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-40">Task</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-24">Check-In</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase w-24">Check-Out</th>
-                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground uppercase w-24">Hours</th>
-                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground uppercase">Description</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground w-44">Project</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground w-40">Task</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground w-24">Start</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground w-24">End</th>
+                            <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground w-24">Duration</th>
+                            <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Description</th>
                           </tr>
                         </thead>
                         <tbody>

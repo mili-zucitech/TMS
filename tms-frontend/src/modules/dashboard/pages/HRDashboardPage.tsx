@@ -28,6 +28,7 @@ import {
 } from 'recharts'
 
 import { useAuth } from '@/context/AuthContext'
+import { useGetUserByIdQuery } from '@/features/users/usersApi'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -94,6 +95,12 @@ function ActivityItem({ log }: { log: AuditLogResponse }) {
 export function HRDashboardPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const userId = user?.userId ?? null
+
+  const { data: userProfile } = useGetUserByIdQuery(userId!, { skip: !userId })
+  const displayName = userProfile?.name
+    ? userProfile.name.charAt(0).toUpperCase() + userProfile.name.slice(1)
+    : null
 
   const {
     allUsers,
@@ -175,7 +182,7 @@ export function HRDashboardPage() {
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-screen-xl mx-auto">
       {/* Welcome */}
-      <WelcomeHeader name={user?.email?.split('@')[0] ?? null} role={user?.roleName ?? null} />
+      <WelcomeHeader name={displayName} role={user?.roleName ?? null} />
 
       {/* ── Stats row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
