@@ -31,5 +31,5 @@ public class CorsProperties {
      * Explicit allowed origins. Populated via {@code cors.allowed-origins} in
      * {@code application.yml}, which in turn resolves {@code FRONTEND_URL}.
      */
-    private List<String> allowedOrigins = List.of("http://localhost:5173");
+    private List<String> allowedOrigins = List.of("http://localhost:5173", "https://tms-lac.vercel.app/login", "https://tms-lac.vercel.app");
 }
