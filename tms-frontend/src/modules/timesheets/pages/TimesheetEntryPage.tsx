@@ -118,22 +118,23 @@ export default function TimesheetEntryPage() {
 
   // ── Current user's UUID (available directly from the JWT) ───────────────
   // Build a minimal object matching the expected shape to minimise call-site changes.
-  const currentUser = authUser?.userId ? { id: authUser.userId } : null
+  const currentUserId = authUser?.userId ?? null
+  const currentUser = currentUserId ? { id: currentUserId } : null
 
   // ── Role-scoped project assignments ────────────────────────────────────
   const [assignedProjectIds, setAssignedProjectIds] = useState<Set<number> | null>(null)
 
   useEffect(() => {
-    if (!currentUser) return
+    if (!currentUserId) return
     const role = authUser?.roleName
     if (role === 'EMPLOYEE') {
-      projectService.getAssignmentsByUser(currentUser.id)
+      projectService.getAssignmentsByUser(currentUserId)
         .then((assignments) => setAssignedProjectIds(new Set(assignments.map((a) => a.projectId))))
         .catch(() => setAssignedProjectIds(new Set()))
     } else {
       setAssignedProjectIds(null) // no restriction for ADMIN/HR; MANAGER filtered below
     }
-  }, [currentUser, authUser?.roleName])
+  }, [currentUserId, authUser?.roleName])
 
   // ── Filtered project list based on role ────────────────────────────────
   const projects = useMemo(() => {
