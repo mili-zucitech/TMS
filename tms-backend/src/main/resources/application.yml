@@ -57,9 +57,14 @@ jwt:
   expiration: 86400000  # 24 hours in milliseconds
 
 # CORS Configuration
+# cors.allowed-origins is populated from the FRONTEND_URL environment variable.
+# Falls back to http://localhost:5173 when FRONTEND_URL is not set (local dev).
+# Do NOT use a wildcard "*" here — allowCredentials=true requires explicit origins.
+# For multiple origins add additional list items using separate env vars, e.g.:
+#   - ${STAGING_URL:https://staging.example.com}
 cors:
   allowed-origins:
-    - ${FRONTEND_URL}
+    - ${FRONTEND_URL:http://localhost:5173}
 
 # Async thread pool
 async:
