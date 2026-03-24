@@ -59,7 +59,7 @@ jwt:
 # CORS Configuration
 cors:
   allowed-origins:
-    - ${FRONTEND_URL:http://localhost:5173}
+    - ${FRONTEND_URL}
 
 # Async thread pool
 async:
