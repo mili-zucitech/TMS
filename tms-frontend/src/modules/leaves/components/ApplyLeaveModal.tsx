@@ -146,7 +146,7 @@ export function ApplyLeaveModal({
                 return (
                   <option key={t.id} value={t.id}>
                     {t.name}
-                    {remaining != null ? ` â€” ${remaining} days left` : ''}
+                    {remaining != null ? ` \u2014 ${remaining} days left` : ''}
                   </option>
                 )
               })}
