@@ -34,10 +34,10 @@ spring:
   # Mail Configuration
   # Override these values via environment variables or a profile-specific application-{profile}.yml
   mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:milisrivastava.zucitech@gmail.com}
-    password: ${MAIL_PASSWORD:gffjrpybyuuqutpe}
+    host: smtp.gmail.com
+    port: 587
+    username: milisrivastava.zucitech@gmail.com
+    password: gffjrpybyuuqutpe
     properties:
       mail:
         smtp:
