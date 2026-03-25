@@ -49,7 +49,7 @@ public class NotificationEventListener {
         // HTML email: confirm to the employee
         emailService.sendNotificationEmail(
                 event.getSubmitterEmail(),
-                "Timesheet Submitted â€” #" + event.getTimesheetId(),
+                "Timesheet Submitted \u2014 #" + event.getTimesheetId(),
                 emailTemplates.timesheetSubmittedEmployee(event.getSubmitterName(), event.getTimesheetId())
         );
 
@@ -68,7 +68,7 @@ public class NotificationEventListener {
             if (event.getManagerEmail() != null) {
                 emailService.sendNotificationEmail(
                         event.getManagerEmail(),
-                        "Timesheet Pending Review â€” " + event.getSubmitterName(),
+                        "Timesheet Pending Review \u2014 " + event.getSubmitterName(),
                         emailTemplates.timesheetPendingReview(
                                 // manager name not available in the event; use a generic greeting
                                 "Manager",
@@ -114,7 +114,7 @@ public class NotificationEventListener {
 
         emailService.sendNotificationEmail(
                 event.getOwnerEmail(),
-                title + " â€” #" + event.getTimesheetId(),
+                title + " \u2014 #" + event.getTimesheetId(),
                 htmlBody
         );
     }
@@ -141,7 +141,7 @@ public class NotificationEventListener {
         // HTML email: notify the applicant
         emailService.sendNotificationEmail(
                 event.getApplicantEmail(),
-                "Leave Request Submitted â€” #" + event.getLeaveRequestId(),
+                "Leave Request Submitted \u2014 #" + event.getLeaveRequestId(),
                 emailTemplates.leaveApplied(event.getApplicantName(), event.getLeaveRequestId())
         );
     }
