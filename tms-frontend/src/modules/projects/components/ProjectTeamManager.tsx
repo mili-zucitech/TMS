@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { UserPlus, UserMinus, Search, Users } from 'lucide-react'
+import { useState, useMemo, useRef, useEffect } from 'react'
+import { UserPlus, UserMinus, Search, Users, X, Check } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -51,27 +51,43 @@ export function ProjectTeamManager({
     useProjectAssignments(projectId)
 
   // Assign-user form state
-  const [selectedUserId, setSelectedUserId] = useState('')
+  const [selectedUser, setSelectedUser] = useState<UserResponse | null>(null)
   const [selectedRole, setSelectedRole] = useState<ProjectRole | ''>('')
   const [allocation, setAllocation] = useState('')
   const [assigning, setAssigning] = useState(false)
-  const [userSearch, setUserSearch] = useState('')
 
-  // Build a lookup map: userId → UserResponse
-  const userMap = useMemo(
-    () => Object.fromEntries(allUsers.map((u) => [u.id, u])),
-    [allUsers],
-  )
+  // Combobox state
+  const [userSearch, setUserSearch] = useState('')
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const comboboxRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (comboboxRef.current && !comboboxRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleOutside)
+    return () => document.removeEventListener('mousedown', handleOutside)
+  }, [])
 
   // Users not yet assigned, filtered to the project's department when set
-  const assignedUserIds = new Set(assignments.map((a) => a.userId))
-  const availableUsers = allUsers.filter(
-    (u) =>
-      !assignedUserIds.has(u.id) &&
-      (departmentId == null || u.departmentId === departmentId),
+  const assignedUserIds = useMemo(
+    () => new Set(assignments.map((a) => a.userId)),
+    [assignments],
+  )
+  const availableUsers = useMemo(
+    () =>
+      allUsers.filter(
+        (u) =>
+          !assignedUserIds.has(u.id) &&
+          (departmentId == null || u.departmentId === departmentId),
+      ),
+    [allUsers, assignedUserIds, departmentId],
   )
 
-  // Filter available users by search
+  // Filter available users by search query
   const filteredAvailable = useMemo(() => {
     if (!userSearch.trim()) return availableUsers
     const q = userSearch.toLowerCase()
@@ -84,23 +100,29 @@ export function ProjectTeamManager({
   }, [availableUsers, userSearch])
 
   const handleAssign = async () => {
-    if (!selectedUserId) return
+    if (!selectedUser) return
     setAssigning(true)
     const payload: ProjectAssignmentRequest = {
       projectId,
-      userId: selectedUserId,
+      userId: selectedUser.id,
       ...(selectedRole ? { role: selectedRole } : {}),
       ...(allocation ? { allocationPercentage: parseInt(allocation, 10) } : {}),
     }
     const ok = await assignUser(payload)
     if (ok) {
-      setSelectedUserId('')
+      setSelectedUser(null)
       setSelectedRole('')
       setAllocation('')
       setUserSearch('')
     }
     setAssigning(false)
   }
+
+  // Build a lookup map: userId → UserResponse (for current team display)
+  const userMap = useMemo(
+    () => Object.fromEntries(allUsers.map((u) => [u.id, u])),
+    [allUsers],
+  )
 
   return (
     <div className="space-y-6">
@@ -190,35 +212,87 @@ export function ProjectTeamManager({
             <h3 className="text-sm font-semibold">Add Team Member</h3>
           </div>
 
-          {/* Search available users */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-            <Input
-              type="search"
-              placeholder="Search employees…"
-              value={userSearch}
-              onChange={(e) => setUserSearch(e.target.value)}
-              className="pl-9"
-            />
-          </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {/* Employee selector */}
-            <div className="space-y-1.5 sm:col-span-1">
+            {/* ── Employee combobox ───────────────────────── */}
+            <div className="space-y-1.5 sm:col-span-1" ref={comboboxRef}>
               <Label>Employee</Label>
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className={selectClass}
-                aria-label="Select employee"
-              >
-                <option value="">— Select employee —</option>
-                {filteredAvailable.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} ({u.employeeId})
-                  </option>
-                ))}
-              </select>
+              <div className="relative">
+                {/* Input shows selected name or search query */}
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search employees…"
+                  value={selectedUser ? selectedUser.name : userSearch}
+                  onChange={(e) => {
+                    setSelectedUser(null)
+                    setUserSearch(e.target.value)
+                    setDropdownOpen(true)
+                  }}
+                  onFocus={() => { if (!selectedUser) setDropdownOpen(true) }}
+                  className={`${selectClass} pl-9 pr-8 cursor-text`}
+                  readOnly={!!selectedUser}
+                  aria-label="Search employee"
+                  aria-expanded={dropdownOpen}
+                  aria-haspopup="listbox"
+                />
+                {/* Clear button */}
+                {(selectedUser || userSearch) && (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault()
+                      setSelectedUser(null)
+                      setUserSearch('')
+                      setDropdownOpen(false)
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label="Clear selection"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+
+                {/* Dropdown */}
+                {dropdownOpen && !selectedUser && (
+                  <div
+                    role="listbox"
+                    className="absolute left-0 right-0 top-full z-20 mt-1 max-h-52 overflow-y-auto rounded-xl border border-border bg-white shadow-lg dark:bg-card"
+                  >
+                    {filteredAvailable.length === 0 ? (
+                      <p className="px-3 py-3 text-sm text-muted-foreground text-center">
+                        {availableUsers.length === 0 ? 'All employees already assigned' : 'No matches found'}
+                      </p>
+                    ) : (
+                      filteredAvailable.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          role="option"
+                          aria-selected={selectedUser?.id === u.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            setSelectedUser(u)
+                            setUserSearch('')
+                            setDropdownOpen(false)
+                          }}
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-muted transition-colors"
+                        >
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-[10px] font-bold text-white select-none">
+                            {u.name.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium">{u.name}</p>
+                            <p className="text-xs text-muted-foreground">{u.employeeId} · {u.email}</p>
+                          </div>
+                          {selectedUser?.id === u.id && (
+                            <Check className="h-4 w-4 shrink-0 text-emerald-500" />
+                          )}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Role selector */}
@@ -255,7 +329,7 @@ export function ProjectTeamManager({
 
           <Button
             onClick={handleAssign}
-            disabled={!selectedUserId || assigning}
+            disabled={!selectedUser || assigning}
             className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white border-0 gap-2"
           >
             <UserPlus className="h-4 w-4 mr-2" />
