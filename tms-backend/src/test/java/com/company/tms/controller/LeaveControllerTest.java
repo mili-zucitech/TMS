@@ -1,8 +1,6 @@
 package com.company.tms.controller;
 
-import com.company.tms.exception.ResourceNotFoundException;
 import com.company.tms.leave.dto.LeaveApproveRequest;
-import com.company.tms.leave.dto.LeaveRejectRequest;
 import com.company.tms.leave.dto.LeaveRequestCreateRequest;
 import com.company.tms.leave.dto.LeaveRequestResponse;
 import com.company.tms.leave.entity.LeaveStatus;

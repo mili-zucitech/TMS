@@ -36,7 +36,6 @@ class UserRepositoryTest {
     @Autowired DepartmentRepository departmentRepository;
 
     private Role employeeRole;
-    private Role adminRole;
     private User user1;
     private User user2;
     private UUID manager1Id;
@@ -46,7 +45,7 @@ class UserRepositoryTest {
     void setUp() {
         // Persist roles
         employeeRole = roleRepository.save(Role.builder().name(RoleName.EMPLOYEE).build());
-        adminRole = roleRepository.save(Role.builder().name(RoleName.ADMIN).build());
+        roleRepository.save(Role.builder().name(RoleName.ADMIN).build());
 
         Department dept = departmentRepository.save(Department.builder().name("Engineering").build());
         departmentId = dept.getId();

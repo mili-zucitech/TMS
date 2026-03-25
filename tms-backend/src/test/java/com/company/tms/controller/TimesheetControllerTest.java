@@ -4,9 +4,7 @@ import com.company.tms.exception.ResourceNotFoundException;
 import com.company.tms.exception.ValidationException;
 import com.company.tms.security.CustomUserDetailsService;
 import com.company.tms.security.JwtService;
-import com.company.tms.timesheet.dto.TimesheetApproveRequest;
 import com.company.tms.timesheet.dto.TimesheetCreateRequest;
-import com.company.tms.timesheet.dto.TimesheetRejectRequest;
 import com.company.tms.timesheet.dto.TimesheetResponse;
 import com.company.tms.timesheet.entity.TimesheetStatus;
 import com.company.tms.timesheet.exception.InvalidTimesheetStateException;
@@ -35,6 +33,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@SuppressWarnings("null")
 @WebMvcTest(com.company.tms.timesheet.controller.TimesheetController.class)
 @Import(SecurityConfig.class)
 @DisplayName("TimesheetController Tests")

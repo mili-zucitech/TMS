@@ -2,7 +2,6 @@ package com.company.tms.holiday.service;
 
 import com.company.tms.exception.ResourceNotFoundException;
 import com.company.tms.exception.ValidationException;
-import org.springframework.lang.NonNull;
 import com.company.tms.holiday.dto.HolidayCreateRequest;
 import com.company.tms.holiday.dto.HolidayResponse;
 import com.company.tms.holiday.dto.HolidayUpdateRequest;
@@ -109,8 +108,7 @@ public class HolidayService {
     // Internal helpers
     // -------------------------------------------------------------------------
 
-    @NonNull
-    private Holiday findHolidayById(@NonNull Long id) {
+    private Holiday findHolidayById(Long id) {
         return holidayRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Holiday not found with id: " + id));
     }

@@ -13,7 +13,6 @@ import {
   useApproveTimesheetMutation,
   useRejectTimesheetMutation,
 } from '@/features/timesheets/timesheetsApi'
-import type { TimesheetResponse } from '../../types/timesheet.types'
 import type { UserResponse } from '@/modules/users/types/user.types'
 import type { ManagerTimesheetRow, ManagerRejectPayload } from '../types/managerTimesheet.types'
 import { calcDurationMinutes } from '../../utils/timesheetHelpers'

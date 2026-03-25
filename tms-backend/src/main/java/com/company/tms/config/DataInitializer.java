@@ -22,6 +22,7 @@ import java.util.Arrays;
  * All inserts are idempotent — re-running the application never duplicates
  * data.
  */
+@SuppressWarnings("null")
 @Slf4j
 @Component
 @RequiredArgsConstructor

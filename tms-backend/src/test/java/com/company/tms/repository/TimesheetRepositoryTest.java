@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.*;
 
+@SuppressWarnings("null")
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
@@ -139,7 +140,7 @@ class TimesheetRepositoryTest {
     @Test
     @DisplayName("findByTimesheetId returns entries for timesheet")
     void findByTimesheetId_ReturnsEntries() {
-        TimeEntry e1 = timeEntryRepository.save(TimeEntry.builder()
+        timeEntryRepository.save(TimeEntry.builder()
                 .timesheetId(draftSheet.getId())
                 .projectId(1L)
                 .userId(userId1)
@@ -149,7 +150,7 @@ class TimesheetRepositoryTest {
                 .durationMinutes(180)
                 .build());
 
-        TimeEntry e2 = timeEntryRepository.save(TimeEntry.builder()
+        timeEntryRepository.save(TimeEntry.builder()
                 .timesheetId(draftSheet.getId())
                 .projectId(1L)
                 .userId(userId1)

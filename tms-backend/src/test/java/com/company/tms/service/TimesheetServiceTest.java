@@ -302,7 +302,7 @@ class TimesheetServiceTest {
             when(timesheetMapper.toTimesheetResponse(submittedTimesheet)).thenReturn(rejectedResponse);
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
 
-            TimesheetResponse result = timesheetService.rejectTimesheet(2L, managerId, "Missing project details");
+            timesheetService.rejectTimesheet(2L, managerId, "Missing project details");
 
             assertThat(submittedTimesheet.getStatus()).isEqualTo(TimesheetStatus.REJECTED);
             assertThat(submittedTimesheet.getRejectionReason()).isEqualTo("Missing project details");
@@ -330,7 +330,7 @@ class TimesheetServiceTest {
             when(timesheetRepository.save(approvedTimesheet)).thenReturn(approvedTimesheet);
             when(timesheetMapper.toTimesheetResponse(approvedTimesheet)).thenReturn(lockedResponse);
 
-            TimesheetResponse result = timesheetService.lockTimesheet(3L);
+            timesheetService.lockTimesheet(3L);
 
             assertThat(approvedTimesheet.getStatus()).isEqualTo(TimesheetStatus.LOCKED);
         }

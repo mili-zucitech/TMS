@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+@SuppressWarnings("null")
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -93,14 +94,14 @@ public class ProjectService {
     }
 
     /**
-     * Archives a project by transitioning its status to COMPLETED.
+     * Archives a project by transitioning its status to CANCELLED.
      * Archived projects are retained for reporting purposes.
      */
     @Transactional
     public ProjectResponse archiveProject(Long id) {
         log.info("Archiving project with id: {}", id);
         Project project = getExistingProject(id);
-        project.setStatus(ProjectStatus.COMPLETED);
+        project.setStatus(ProjectStatus.CANCELLED);
         Project saved = projectRepository.save(project);
         log.info("Project archived with id: {}", id);
         return projectMapper.toProjectResponse(saved);

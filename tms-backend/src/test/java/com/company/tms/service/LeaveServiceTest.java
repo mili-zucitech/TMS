@@ -32,7 +32,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -219,7 +218,7 @@ class LeaveServiceTest {
             when(leaveMapper.toLeaveRequestResponse(pendingLeave)).thenReturn(cancelledResponse);
             when(leaveTypeRepository.findById(any())).thenReturn(Optional.empty());
 
-            LeaveRequestResponse result = leaveService.cancelLeaveRequest(1L);
+            leaveService.cancelLeaveRequest(1L);
 
             assertThat(pendingLeave.getStatus()).isEqualTo(LeaveStatus.CANCELLED);
         }
@@ -258,7 +257,7 @@ class LeaveServiceTest {
             when(leaveMapper.toLeaveRequestResponse(pendingLeave)).thenReturn(approvedResponse);
             when(leaveTypeRepository.findById(any())).thenReturn(Optional.empty());
 
-            LeaveRequestResponse result = leaveService.approveLeaveRequest(1L, approverId);
+            leaveService.approveLeaveRequest(1L, approverId);
 
             assertThat(pendingLeave.getStatus()).isEqualTo(LeaveStatus.APPROVED);
             assertThat(pendingLeave.getApprovedBy()).isEqualTo(approverId);
@@ -285,7 +284,7 @@ class LeaveServiceTest {
             when(leaveMapper.toLeaveRequestResponse(pendingLeave)).thenReturn(rejectedResponse);
             when(leaveTypeRepository.findById(any())).thenReturn(Optional.empty());
 
-            LeaveRequestResponse result = leaveService.rejectLeaveRequest(1L, approverId, "Insufficient staffing");
+            leaveService.rejectLeaveRequest(1L, approverId, "Insufficient staffing");
 
             assertThat(pendingLeave.getStatus()).isEqualTo(LeaveStatus.REJECTED);
             assertThat(pendingLeave.getRejectionReason()).isEqualTo("Insufficient staffing");

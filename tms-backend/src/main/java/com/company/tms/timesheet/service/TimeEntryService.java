@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("null")
 @Slf4j
 @Service
 @RequiredArgsConstructor

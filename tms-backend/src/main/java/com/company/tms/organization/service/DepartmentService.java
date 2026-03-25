@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
  * Full CRUD + member management for departments.
  * Accessible by ADMIN and HR_MANAGER roles.
  */
+@SuppressWarnings("null")
 @Slf4j
 @Service
 @RequiredArgsConstructor

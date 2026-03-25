@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@SuppressWarnings("null")
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -221,8 +222,11 @@ public class LeaveService {
     }
 
     private LeaveRequestResponse enrichWithLeaveTypeName(LeaveRequestResponse response) {
-        leaveTypeRepository.findById(response.getLeaveTypeId())
-                .ifPresent(lt -> response.setLeaveTypeName(lt.getName()));
+        Long leaveTypeId = response.getLeaveTypeId();
+        if (leaveTypeId != null) {
+            leaveTypeRepository.findById(leaveTypeId)
+                    .ifPresent(lt -> response.setLeaveTypeName(lt.getName()));
+        }
         return response;
     }
 }

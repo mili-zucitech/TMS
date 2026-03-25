@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
+@SuppressWarnings("null")
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,9 +34,9 @@ public class TaskCommentService {
         taskService.getExistingTask(request.getTaskId());
 
         TaskComment comment = taskMapper.toCommentEntity(request);
-        TaskComment saved = taskCommentRepository.save(comment);
-        log.info("Comment added with id: {}", saved.getId());
-        return taskMapper.toCommentResponse(saved);
+        TaskCommentResponse saved = taskMapper.toCommentResponse(taskCommentRepository.save(comment));
+        log.info("Comment added for taskId: {}", request.getTaskId());
+        return saved;
     }
 
     /**

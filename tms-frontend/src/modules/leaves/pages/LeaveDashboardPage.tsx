@@ -89,8 +89,8 @@ export function LeaveDashboardPage() {
       {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-            <CalendarDays className="h-5 w-5 text-primary" />
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-md shadow-emerald-500/25">
+            <CalendarDays className="h-5 w-5 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">My Leave</h1>
@@ -102,7 +102,7 @@ export function LeaveDashboardPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="h-9 w-9" onClick={fetchLeaves} title="Refresh">
+          <Button variant="outline" size="icon" className="h-9 w-9" onClick={fetchLeaves} title="Refresh">
             <RefreshCw className="h-4 w-4" />
           </Button>
           {!isMobile && (

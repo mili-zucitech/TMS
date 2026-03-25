@@ -49,11 +49,11 @@ const CARD_STYLES = [
 export function LeaveBalanceCard({ balances, isLoading, onInitialize, isInitializing }: LeaveBalanceCardProps) {
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
-            className="h-32 rounded-2xl border border-border bg-muted/30 animate-pulse"
+            className="h-[72px] rounded-xl border border-border bg-muted/30 animate-pulse"
           />
         ))}
       </div>
@@ -62,8 +62,8 @@ export function LeaveBalanceCard({ balances, isLoading, onInitialize, isInitiali
 
   if (balances.length === 0) {
     return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-muted/20 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+      <div className="flex flex-col gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
           <Info className="h-4 w-4 flex-shrink-0" />
           No leave balance data available for the current year.
         </div>
@@ -84,7 +84,7 @@ export function LeaveBalanceCard({ balances, isLoading, onInitialize, isInitiali
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
       {balances.map((balance, idx) => {
         const style = CARD_STYLES[idx % CARD_STYLES.length]
         const { Icon } = style
@@ -92,43 +92,40 @@ export function LeaveBalanceCard({ balances, isLoading, onInitialize, isInitiali
           balance.totalAllocated > 0
             ? Math.round((balance.usedLeaves / balance.totalAllocated) * 100)
             : 0
+        const remainingPct = 100 - usedPct
 
         return (
           <div
             key={balance.id}
             className={cn(
-              'rounded-2xl border p-4 bg-gradient-to-br',
+              'rounded-xl border p-3 bg-gradient-to-br flex items-center gap-3',
               style.gradient,
               style.border,
             )}
           >
-            <div className="flex items-start justify-between mb-3">
-              <div className={cn('rounded-xl p-2', style.iconBg)}>
-                <Icon className={cn('h-4 w-4', style.iconColor)} />
+            <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', style.iconBg)}>
+              <Icon className={cn('h-4 w-4', style.iconColor)} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-medium text-muted-foreground truncate leading-none mb-1">
+                {balance.leaveTypeName}
+              </p>
+              <div className="flex items-baseline gap-1 mb-1.5">
+                <span className="text-lg font-bold tabular-nums leading-none">
+                  {balance.remainingLeaves}
+                </span>
+                <span className="text-[11px] text-muted-foreground">/ {balance.totalAllocated}d</span>
               </div>
-              <span className="text-xs text-muted-foreground">{balance.year}</span>
+              <div className="flex items-center gap-1.5">
+                <div className="h-1 flex-1 rounded-full bg-black/8 dark:bg-white/10 overflow-hidden">
+                  <div
+                    className={cn('h-full rounded-full transition-all', style.barColor)}
+                    style={{ width: `${remainingPct}%` }}
+                  />
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{usedPct}% used</span>
+              </div>
             </div>
-            <p className="text-xs font-medium text-muted-foreground truncate mb-0.5">
-              {balance.leaveTypeName}
-            </p>
-            <div className="flex items-baseline gap-1 mb-2">
-              <span className="text-2xl font-bold tabular-nums">
-                {balance.remainingLeaves}
-              </span>
-              <span className="text-xs text-muted-foreground">
-                / {balance.totalAllocated} days
-              </span>
-            </div>
-            {/* Progress bar */}
-            <div className="h-1.5 rounded-full bg-black/5 dark:bg-white/10 overflow-hidden">
-              <div
-                className={cn('h-full rounded-full transition-all', style.barColor)}
-                style={{ width: `${usedPct}%` }}
-              />
-            </div>
-            <p className="text-[10px] text-muted-foreground mt-1">
-              {balance.usedLeaves} used · {usedPct}%
-            </p>
           </div>
         )
       })}

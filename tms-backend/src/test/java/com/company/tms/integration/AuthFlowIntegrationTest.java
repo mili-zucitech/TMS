@@ -19,6 +19,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Uses the H2 in-memory database configured in {@code application-test.yml}.
  * The admin user (admin@tms.com / Admin@123) is seeded by {@code DataInitializer} on startup.
  */
+@SuppressWarnings("null")
 @DisplayName("Auth Flow Integration Tests")
 class AuthFlowIntegrationTest extends AbstractIntegrationTest {
 

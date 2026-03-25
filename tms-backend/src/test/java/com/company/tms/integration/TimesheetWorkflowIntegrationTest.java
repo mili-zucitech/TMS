@@ -37,6 +37,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * <p>Uses the H2 in-memory database configured in {@code application-test.yml}.
  * Test data is seeded in {@link #setupTestData()} via direct repository injection.</p>
  */
+@SuppressWarnings("null")
 @DisplayName("Timesheet Workflow Integration Tests")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)

@@ -32,16 +32,14 @@ class LeaveRepositoryTest {
 
     private UUID userId1;
     private UUID userId2;
-    private Leave pendingLeave;
     private Leave approvedLeave;
-    private Leave rejectedLeave;
 
     @BeforeEach
     void setUp() {
         userId1 = UUID.randomUUID();
         userId2 = UUID.randomUUID();
 
-        pendingLeave = leaveRepository.save(Leave.builder()
+        leaveRepository.save(Leave.builder()
                 .userId(userId1)
                 .leaveTypeId(1L)
                 .startDate(LocalDate.of(2026, 5, 5))
@@ -61,7 +59,7 @@ class LeaveRepositoryTest {
                 .status(LeaveStatus.APPROVED)
                 .build());
 
-        rejectedLeave = leaveRepository.save(Leave.builder()
+        leaveRepository.save(Leave.builder()
                 .userId(userId2)
                 .leaveTypeId(2L)
                 .startDate(LocalDate.of(2026, 5, 10))

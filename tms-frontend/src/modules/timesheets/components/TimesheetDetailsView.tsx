@@ -88,16 +88,19 @@ export function TimesheetDetailsView({
           icon={Clock}
           label="Total Hours"
           value={formatDuration(weeklyMinutes)}
+          iconClassName="from-emerald-500 to-teal-600 shadow-emerald-500/20"
         />
         <StatCard
           icon={FolderOpen}
           label="Projects"
           value={String(uniqueProjects.length)}
+          iconClassName="from-blue-500 to-indigo-600 shadow-blue-500/20"
         />
         <StatCard
           icon={CheckCircle2}
           label="Entries"
           value={String(entries.length)}
+          iconClassName="from-amber-500 to-orange-500 shadow-amber-500/20"
         />
         {leaveDaysCount > 0 ? (
           <StatCard
@@ -201,7 +204,15 @@ export function TimesheetDetailsView({
               <>
                 {/* Desktop table */}
                 <div className="hidden sm:block overflow-x-auto">
-                  <table className="w-full text-sm">
+                  <table className="w-full text-sm table-fixed">
+                    <colgroup>
+                      <col className="w-[18%]" />
+                      <col className="w-[15%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[10%]" />
+                      <col className="w-[12%]" />
+                      <col className="w-[35%]" />
+                    </colgroup>
                     <thead>
                       <tr className="border-b border-border/50 bg-muted/10">
                         <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Project</th>
@@ -215,14 +226,14 @@ export function TimesheetDetailsView({
                     <tbody>
                       {dayEntries.map((e) => (
                         <tr key={e.id} className="border-b border-border/30 last:border-0">
-                          <td className="px-4 py-2.5">{projectNames[e.projectId] ?? `#${e.projectId}`}</td>
-                          <td className="px-4 py-2.5 text-muted-foreground">{e.taskId ? (taskNames[e.taskId] ?? `#${e.taskId}`) : '—'}</td>
+                          <td className="px-4 py-2.5 truncate">{projectNames[e.projectId] ?? `#${e.projectId}`}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground truncate">{e.taskId ? (taskNames[e.taskId] ?? `#${e.taskId}`) : '—'}</td>
                           <td className="px-4 py-2.5 font-mono text-muted-foreground">{stripSeconds(e.startTime)}</td>
                           <td className="px-4 py-2.5 font-mono text-muted-foreground">{stripSeconds(e.endTime)}</td>
                           <td className="px-4 py-2.5 text-center font-semibold text-emerald-600 dark:text-emerald-400">
                             {formatDuration(e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime))}
                           </td>
-                          <td className="px-4 py-2.5 text-muted-foreground max-w-[200px] truncate">{e.description || '—'}</td>
+                          <td className="px-4 py-2.5 text-muted-foreground truncate">{e.description || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -245,9 +256,9 @@ export function TimesheetDetailsView({
                         <span className="font-mono">{stripSeconds(e.startTime)} – {stripSeconds(e.endTime)}</span>
                         {e.taskId && <span>· {taskNames[e.taskId] ?? `Task #${e.taskId}`}</span>}
                       </div>
-                      {e.description && (
-                        <p className="text-xs text-muted-foreground">{e.description}</p>
-                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {e.description ?? <span className="italic opacity-50">No description</span>}
+                      </p>
                     </div>
                   ))}
                 </div>

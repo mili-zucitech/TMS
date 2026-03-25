@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { UserPlus, UserMinus, Search, Users, X, Check } from 'lucide-react'
+import { UserPlus, UserMinus, Search, Users, X } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -263,12 +263,12 @@ export function ProjectTeamManager({
                         {availableUsers.length === 0 ? 'All employees already assigned' : 'No matches found'}
                       </p>
                     ) : (
-                      filteredAvailable.map((u) => (
+                      filteredAvailable.map((u: UserResponse) => (
                         <button
                           key={u.id}
                           type="button"
                           role="option"
-                          aria-selected={selectedUser?.id === u.id}
+                          aria-selected={false}
                           onMouseDown={(e) => {
                             e.preventDefault()
                             setSelectedUser(u)
@@ -284,9 +284,6 @@ export function ProjectTeamManager({
                             <p className="truncate text-sm font-medium">{u.name}</p>
                             <p className="text-xs text-muted-foreground">{u.employeeId} · {u.email}</p>
                           </div>
-                          {selectedUser?.id === u.id && (
-                            <Check className="h-4 w-4 shrink-0 text-emerald-500" />
-                          )}
                         </button>
                       ))
                     )}

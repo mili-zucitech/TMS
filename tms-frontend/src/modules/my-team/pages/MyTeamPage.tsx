@@ -7,10 +7,12 @@ import {
   Briefcase,
   AlertCircle,
   Search,
+  UserCheck,
+  CalendarOff,
+  UserMinus,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
-import { Card, CardContent } from '@/components/ui/Card'
 import { cn } from '@/utils/cn'
 import { useAuth } from '@/hooks/useAuth'
 import { useMyTeam } from '../hooks/useMyTeam'
@@ -25,21 +27,23 @@ import type { UserResponse, UserStatus } from '@/modules/users/types/user.types'
 function StatCard({
   label,
   value,
-  colorClass,
+  icon: Icon,
+  iconClassName,
 }: {
   label: string
   value: number
-  colorClass: string
+  icon: React.ElementType
+  iconClassName: string
 }) {
   return (
-    <div
-      className={cn(
-        'rounded-xl border border-border bg-card px-5 py-4 flex flex-col gap-1',
-        colorClass,
-      )}
-    >
-      <p className="text-2xl font-bold">{value}</p>
-      <p className="text-xs text-muted-foreground font-medium">{label}</p>
+    <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center gap-3 shadow-sm">
+      <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br shadow-sm', iconClassName)}>
+        <Icon className="h-4 w-4 text-white" />
+      </div>
+      <div>
+        <p className="text-xl font-bold tabular-nums leading-none">{value}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{label}</p>
+      </div>
     </div>
   )
 }
@@ -55,51 +59,55 @@ function MemberCard({ member, isDirectReport }: { member: UserResponse; isDirect
     .toUpperCase()
 
   return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-5">
-        <div className="flex items-start gap-4">
-          {/* Avatar */}
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-sm font-bold shadow">
-            {initials}
-          </div>
-
-          {/* Info */}
-          <div className="min-w-0 flex-1 space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-semibold text-sm truncate">{member.name}</p>
-              <RoleBadge role={member.roleName} />
-              <StatusBadge status={member.status} />
-              {isDirectReport && (
-                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border border-indigo-500/20">
-                  Direct Report
-                </span>
-              )}
-            </div>
-
-            <p className="text-xs text-muted-foreground font-mono">{member.employeeId}</p>
-
-            <div className="flex flex-col gap-1 mt-1">
-              {member.designation && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Briefcase className="h-3 w-3 shrink-0" />
-                  {member.designation}
-                </span>
-              )}
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Mail className="h-3 w-3 shrink-0" />
-                <span className="truncate">{member.email}</span>
-              </span>
-              {member.phone && (
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Phone className="h-3 w-3 shrink-0" />
-                  {member.phone}
-                </span>
-              )}
-            </div>
-          </div>
+    <div className="rounded-xl border border-border bg-card p-4 hover:shadow-md hover:border-emerald-500/30 transition-all duration-200">
+      {/* Top row: avatar + name/direct badge + status in top-right */}
+      <div className="flex items-start gap-3">
+        {/* Avatar */}
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-sm font-bold shadow-sm select-none">
+          {initials}
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2 mb-1">
+            <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+              <p className="font-semibold text-sm leading-tight">{member.name}</p>
+              {isDirectReport && (
+                <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                  Direct
+                </span>
+              )}
+            </div>
+            <StatusBadge status={member.status} />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+            <RoleBadge role={member.roleName} />
+          </div>
+
+          <div className="space-y-1">
+            {member.designation && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Briefcase className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                {member.designation}
+              </span>
+            )}
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Mail className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+              <span className="truncate">{member.email}</span>
+            </span>
+            {member.phone && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Phone className="h-3 w-3 shrink-0 text-muted-foreground/70" />
+                {member.phone}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-2 font-mono text-[10px] text-muted-foreground/60">{member.employeeId}</p>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -107,13 +115,17 @@ function MemberCard({ member, isDirectReport }: { member: UserResponse; isDirect
 
 function MemberCardSkeleton() {
   return (
-    <div className="rounded-2xl border border-border bg-card p-5 animate-pulse">
-      <div className="flex items-start gap-4">
-        <div className="h-11 w-11 rounded-full bg-muted" />
-        <div className="flex-1 space-y-2">
-          <div className="h-4 w-36 bg-muted rounded" />
-          <div className="h-3 w-20 bg-muted rounded" />
-          <div className="h-3 w-48 bg-muted rounded" />
+    <div className="rounded-xl border border-border bg-card p-4 animate-pulse">
+      <div className="flex items-start gap-3">
+        <div className="h-10 w-10 rounded-full bg-muted shrink-0" />
+        <div className="flex-1 space-y-2 pt-0.5">
+          <div className="h-4 w-32 bg-muted rounded" />
+          <div className="flex gap-1.5">
+            <div className="h-4 w-14 bg-muted rounded-full" />
+            <div className="h-4 w-14 bg-muted rounded-full" />
+          </div>
+          <div className="h-3 w-44 bg-muted rounded" />
+          <div className="h-3 w-36 bg-muted rounded" />
         </div>
       </div>
     </div>
@@ -199,10 +211,10 @@ export default function MyTeamPage() {
         {/* ── Stats ───────────────────────────────────────── */}
         {!isLoading && !error && members.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <StatCard label="Total Members" value={members.length} colorClass="" />
-            <StatCard label="Active" value={activeCount} colorClass="border-emerald-500/20" />
-            <StatCard label="On Leave" value={onLeaveCount} colorClass="border-amber-500/20" />
-            <StatCard label="Inactive / Other" value={inactiveCount} colorClass="border-slate-400/20" />
+            <StatCard label="Total Members"   value={members.length} icon={Users}      iconClassName="from-emerald-500 to-teal-600 shadow-emerald-500/20" />
+            <StatCard label="Active"          value={activeCount}    icon={UserCheck}  iconClassName="from-emerald-500 to-teal-600 shadow-emerald-500/20" />
+            <StatCard label="On Leave"        value={onLeaveCount}   icon={CalendarOff} iconClassName="from-amber-500 to-orange-500 shadow-amber-500/20" />
+            <StatCard label="Inactive / Other" value={inactiveCount} icon={UserMinus}  iconClassName="from-slate-400 to-slate-500 shadow-slate-400/20" />
           </div>
         )}
 
@@ -215,7 +227,7 @@ export default function MyTeamPage() {
               placeholder="Search by name, email, ID, or designation…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background pl-9 pr-4 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/60 transition"
+              className="w-full h-9 rounded-lg border border-input bg-background pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500/50 transition"
             />
           </div>
 
