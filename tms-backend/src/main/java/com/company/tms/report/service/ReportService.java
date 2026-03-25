@@ -1,13 +1,19 @@
 package com.company.tms.report.service;
 
+import com.company.tms.leave.entity.Leave;
+import com.company.tms.leave.entity.LeaveStatus;
+import com.company.tms.leave.repository.LeaveRepository;
+import com.company.tms.leave.repository.LeaveTypeRepository;
 import com.company.tms.project.entity.Project;
 import com.company.tms.project.repository.ProjectRepository;
 import com.company.tms.report.dto.*;
 import com.company.tms.timesheet.entity.TimeEntry;
 import com.company.tms.timesheet.entity.Timesheet;
+import com.company.tms.timesheet.entity.TimesheetStatus;
 import com.company.tms.timesheet.repository.TimeEntryRepository;
 import com.company.tms.timesheet.repository.TimesheetRepository;
 import com.company.tms.user.entity.User;
+import com.company.tms.user.entity.UserStatus;
 import com.company.tms.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +35,8 @@ public class ReportService {
     private final TimeEntryRepository timeEntryRepository;
     private final UserRepository userRepository;
     private final ProjectRepository projectRepository;
+    private final LeaveRepository leaveRepository;
+    private final LeaveTypeRepository leaveTypeRepository;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -284,6 +292,138 @@ public class ReportService {
                 .totalNonBillableHours(0)
                 .totalHours(totalHours)
                 .overallBillablePercent(overallPct)
+                .build();
+    }
+
+    // ── Leave Report ────────────────────────────────────────────────────────────────────────
+
+    public LeaveReport getLeaveReport(
+            Authentication auth,
+            LocalDate startDate,
+            LocalDate endDate,
+            Long departmentId,
+            UUID filterUserId,
+            Long filterLeaveTypeId) {
+
+        Set<UUID> accessible = resolveAccessibleUserIds(auth);
+        if (filterUserId != null) accessible.retainAll(Set.of(filterUserId));
+
+        Map<UUID, User> userMap = buildUserMap();
+        Map<Long, String> deptNameCache = new HashMap<>();
+
+        // Resolve leave type names once
+        Map<Long, String> leaveTypeNames = leaveTypeRepository.findAll().stream()
+                .collect(Collectors.toMap(
+                        com.company.tms.leave.entity.LeaveType::getId,
+                        com.company.tms.leave.entity.LeaveType::getName));
+
+        List<Leave> allLeaves = leaveRepository.findByUserIdIn(accessible);
+
+        // Apply optional date and leave-type filters
+        List<Leave> filtered = allLeaves.stream()
+                .filter(l -> startDate == null || !l.getStartDate().isBefore(startDate))
+                .filter(l -> endDate == null || !l.getEndDate().isAfter(endDate))
+                .filter(l -> filterLeaveTypeId == null || filterLeaveTypeId.equals(l.getLeaveTypeId()))
+                .collect(Collectors.toList());
+
+        List<LeaveReportEntry> entries = new ArrayList<>();
+        int totalApproved = 0, totalPending = 0, totalRejected = 0, totalDays = 0;
+
+        for (Leave leave : filtered) {
+            User user = userMap.get(leave.getUserId());
+            if (user == null) continue;
+            if (departmentId != null && !departmentId.equals(user.getDepartmentId())) continue;
+
+            String deptName   = resolveDepartmentName(user, deptNameCache);
+            String leaveType  = leaveTypeNames.getOrDefault(leave.getLeaveTypeId(), "Unknown");
+            String statusStr  = leave.getStatus().name();
+
+            entries.add(LeaveReportEntry.builder()
+                    .userId(leave.getUserId())
+                    .employeeName(user.getName())
+                    .department(deptName)
+                    .leaveType(leaveType)
+                    .totalDays(leave.getTotalDays())
+                    .status(statusStr)
+                    .startDate(leave.getStartDate().toString())
+                    .endDate(leave.getEndDate().toString())
+                    .build());
+
+            totalDays += leave.getTotalDays();
+            if (leave.getStatus() == LeaveStatus.APPROVED)  totalApproved++;
+            else if (leave.getStatus() == LeaveStatus.PENDING)   totalPending++;
+            else if (leave.getStatus() == LeaveStatus.REJECTED)  totalRejected++;
+        }
+
+        return LeaveReport.builder()
+                .entries(entries)
+                .totalApproved(totalApproved)
+                .totalPending(totalPending)
+                .totalRejected(totalRejected)
+                .totalDays(totalDays)
+                .build();
+    }
+
+    // ── KPI Summary ───────────────────────────────────────────────────────────────────────
+
+    public KpiSummary getKpiSummary(
+            Authentication auth,
+            LocalDate startDate,
+            LocalDate endDate) {
+
+        Set<UUID> accessible = resolveAccessibleUserIds(auth);
+
+        // ---- Hours ----
+        double totalHours = 0, totalBillable = 0;
+        int pendingTimesheets = 0;
+
+        for (UUID userId : accessible) {
+            List<Timesheet> sheets = filterTimesheets(
+                    timesheetRepository.findByUserId(userId), startDate, endDate);
+            for (Timesheet ts : sheets) {
+                if (ts.getStatus() == TimesheetStatus.SUBMITTED) {
+                    pendingTimesheets++;
+                }
+                List<TimeEntry> teList = timeEntryRepository.findByTimesheetId(ts.getId());
+                long totalMin = teList.stream()
+                        .mapToLong(te -> te.getDurationMinutes() != null ? te.getDurationMinutes() : 0)
+                        .sum();
+                double hrs = minutesToHours(totalMin);
+                totalHours    += hrs;
+                totalBillable += hrs;
+            }
+        }
+
+        double utilPct = totalHours > 0
+                ? Math.round((totalBillable / totalHours) * 1000.0) / 10.0
+                : 0.0;
+
+        // ---- Active employees (ACTIVE status) ----
+        long activeEmployees = userRepository.findAll().stream()
+                .filter(u -> accessible.contains(u.getId()))
+                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                .count();
+
+        // ---- Active projects (have at least one time entry in range) ----
+        Set<Long> projectIds = new HashSet<>();
+        for (UUID userId : accessible) {
+            List<Timesheet> sheets = filterTimesheets(
+                    timesheetRepository.findByUserId(userId), startDate, endDate);
+            for (Timesheet ts : sheets) {
+                timeEntryRepository.findByTimesheetId(ts.getId())
+                        .forEach(te -> {
+                            if (te.getProjectId() != null) projectIds.add(te.getProjectId());
+                        });
+            }
+        }
+
+        return KpiSummary.builder()
+                .totalHoursLogged(totalHours)
+                .totalBillableHours(totalBillable)
+                .utilizationPercent(utilPct)
+                .activeEmployees((int) activeEmployees)
+                .activeProjects(projectIds.size())
+                .pendingTimesheets(pendingTimesheets)
                 .build();
     }
 }

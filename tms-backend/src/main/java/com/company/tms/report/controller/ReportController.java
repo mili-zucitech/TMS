@@ -2,6 +2,8 @@ package com.company.tms.report.controller;
 
 import com.company.tms.report.dto.BillableHoursReport;
 import com.company.tms.report.dto.EmployeeHoursReport;
+import com.company.tms.report.dto.KpiSummary;
+import com.company.tms.report.dto.LeaveReport;
 import com.company.tms.report.dto.ProjectUtilizationReport;
 import com.company.tms.report.service.ReportService;
 import com.company.tms.util.ApiResponse;
@@ -109,5 +111,58 @@ public class ReportController {
                 auth, startDate, endDate, projectId, userId);
 
         return ResponseEntity.ok(ApiResponse.success(report, "Billable hours report retrieved"));
+    }
+
+    /**
+     * GET /api/v1/reports/leave-report
+     *
+     * Query params (all optional):
+     *   startDate   – ISO date (YYYY-MM-DD)
+     *   endDate     – ISO date (YYYY-MM-DD)
+     *   departmentId
+     *   userId      – filter by a specific employee
+     *   leaveTypeId – filter by leave type
+     *
+     * Access: all authenticated users (data is scoped server-side by role).
+     */
+    @GetMapping("/leave-report")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<LeaveReport>> getLeaveReport(
+            Authentication auth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long departmentId,
+            @RequestParam(required = false) UUID userId,
+            @RequestParam(required = false) Long leaveTypeId) {
+
+        log.debug("GET /api/v1/reports/leave-report start={} end={} dept={} user={} leaveType={}",
+                startDate, endDate, departmentId, userId, leaveTypeId);
+
+        LeaveReport report = reportService.getLeaveReport(
+                auth, startDate, endDate, departmentId, userId, leaveTypeId);
+
+        return ResponseEntity.ok(ApiResponse.success(report, "Leave report retrieved"));
+    }
+
+    /**
+     * GET /api/v1/reports/kpi-summary
+     *
+     * Query params (all optional): startDate, endDate.
+     * Returns aggregated KPI figures (hours, utilization, headcount, project count, pending timesheets).
+     *
+     * Access: all authenticated users (data is scoped server-side by role).
+     */
+    @GetMapping("/kpi-summary")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<KpiSummary>> getKpiSummary(
+            Authentication auth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        log.debug("GET /api/v1/reports/kpi-summary start={} end={}", startDate, endDate);
+
+        KpiSummary summary = reportService.getKpiSummary(auth, startDate, endDate);
+
+        return ResponseEntity.ok(ApiResponse.success(summary, "KPI summary retrieved"));
     }
 }
