@@ -32,12 +32,14 @@ spring:
     repair-on-migrate: true
 
   # Mail Configuration
-  # Override these values via environment variables or a profile-specific application-{profile}.yml
+  # MAIL_USERNAME and MAIL_PASSWORD are REQUIRED — the app will refuse to start if either is missing or empty.
+  # For Gmail: MAIL_PASSWORD must be a 16-character App Password (Google Account → Security → App Passwords).
+  # NEVER hardcode credentials here; always supply them via environment variables or a secrets manager.
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: milisrivastava.zucitech@gmail.com
-    password: gffjrpybyuuqutpe
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}           # Required — no default; do not add a fallback
+    password: ${SPRING_MAIL_PASSWORD}           # Required — no default; App Password for Gmail
     properties:
       mail:
         smtp:
@@ -45,6 +47,10 @@ spring:
           starttls:
             enable: true
             required: true
+          # Connection / read / write timeouts (ms) — prevents silent hangs when SMTP is unreachable
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
 server:
   port: ${PORT:8080}
@@ -76,4 +82,7 @@ logging:
   level:
     com.company.tms: INFO
     org.springframework.security: WARN
+    # ---- Mail debugging — reveals SMTP handshake details without exposing passwords ----
+    org.springframework.mail: DEBUG
+    com.sun.mail: DEBUG
 

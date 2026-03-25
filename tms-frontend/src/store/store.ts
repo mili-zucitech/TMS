@@ -1,6 +1,18 @@
-import { configureStore } from '@reduxjs/toolkit'
+import { configureStore, createListenerMiddleware } from '@reduxjs/toolkit'
 import { baseApi } from './baseApi'
-import authReducer from '@/features/auth/authSlice'
+import authReducer, { logout } from '@/features/auth/authSlice'
+
+// ── Logout listener — clears all RTK Query cache entries on logout ─────────────
+// Without this, cached API data (e.g. notifications with isRead state) persists
+// in memory and is served to the next user or re-login within the keepUnusedDataFor
+// window (default 60 s), causing stale "unread" state after re-login.
+const authListener = createListenerMiddleware()
+authListener.startListening({
+  actionCreator: logout,
+  effect: (_action, listenerApi) => {
+    listenerApi.dispatch(baseApi.util.resetApiState())
+  },
+})
 
 export const store = configureStore({
   reducer: {
@@ -8,7 +20,9 @@ export const store = configureStore({
     auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(baseApi.middleware),
+    getDefaultMiddleware()
+      .prepend(authListener.middleware)
+      .concat(baseApi.middleware),
   devTools: import.meta.env.DEV,
 })
 

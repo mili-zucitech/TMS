@@ -1,8 +1,17 @@
 import { useMemo, useState } from 'react'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell, CheckCheck, Trash2, CheckSquare, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { Checkbox } from '@/components/ui/Checkbox'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/Dialog'
 import { cn } from '@/utils/cn'
 import { NotificationCard } from '../components/NotificationCard'
 import { useNotifications } from '../hooks/useNotifications'
@@ -19,9 +28,16 @@ export default function NotificationsPage() {
   const { user } = useAuth()
   const userId = user?.userId ?? null
 
-  const { notifications, isLoading, markRead, markAllRead } = useNotifications(userId)
+  const { notifications, isLoading, markRead, markAllRead, deleteOne, deleteAll, deleteSelected } =
+    useNotifications(userId)
+
   const [filter, setFilter] = useState<FilterMode>('ALL')
   const [page, setPage] = useState(0)
+  const [selectMode, setSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set())
+  const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [confirmDeleteSelected, setConfirmDeleteSelected] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications])
 
@@ -33,9 +49,74 @@ export default function NotificationsPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE)
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
 
+  // ── Selection helpers ──────────────────────────────────────────────────────
+
+  const toggleSelection = (id: number, checked: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      checked ? next.add(id) : next.delete(id)
+      return next
+    })
+  }
+
+  const allPageSelected =
+    paginated.length > 0 && paginated.every((n) => selectedIds.has(n.id))
+
+  const somePageSelected = paginated.some((n) => selectedIds.has(n.id))
+
+  const toggleSelectAll = () => {
+    if (allPageSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        paginated.forEach((n) => next.delete(n.id))
+        return next
+      })
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        paginated.forEach((n) => next.add(n.id))
+        return next
+      })
+    }
+  }
+
+  const exitSelectMode = () => {
+    setSelectMode(false)
+    setSelectedIds(new Set())
+  }
+
+  // ── Actions ────────────────────────────────────────────────────────────────
+
   const handleFilterChange = (mode: FilterMode) => {
     setFilter(mode)
     setPage(0)
+    exitSelectMode()
+  }
+
+  const handleDeleteOne = async (id: number) => {
+    await deleteOne(id)
+  }
+
+  const handleDeleteSelected = async () => {
+    setIsDeleting(true)
+    try {
+      await deleteSelected(Array.from(selectedIds))
+      exitSelectMode()
+    } finally {
+      setIsDeleting(false)
+      setConfirmDeleteSelected(false)
+    }
+  }
+
+  const handleDeleteAll = async () => {
+    setIsDeleting(true)
+    try {
+      await deleteAll()
+      exitSelectMode()
+    } finally {
+      setIsDeleting(false)
+      setConfirmDeleteAll(false)
+    }
   }
 
   return (
@@ -57,17 +138,65 @@ export default function NotificationsPage() {
             </p>
           </div>
         </div>
-        {unreadCount > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 self-start sm:self-auto"
-            onClick={() => void markAllRead()}
-          >
-            <CheckCheck className="h-4 w-4" />
-            Mark all as read
-          </Button>
-        )}
+
+        {/* Toolbar actions */}
+        <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+          {selectMode ? (
+            <>
+              {selectedIds.size > 0 && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setConfirmDeleteSelected(true)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete selected ({selectedIds.size})
+                </Button>
+              )}
+              <Button variant="outline" size="sm" className="gap-2" onClick={exitSelectMode}>
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              {unreadCount > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => void markAllRead()}
+                >
+                  <CheckCheck className="h-4 w-4" />
+                  Mark all read
+                </Button>
+              )}
+              {notifications.length > 0 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2"
+                    onClick={() => setSelectMode(true)}
+                  >
+                    <CheckSquare className="h-4 w-4" />
+                    Select
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-destructive hover:text-destructive border-destructive/30 hover:bg-destructive/5"
+                    onClick={() => setConfirmDeleteAll(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete all
+                  </Button>
+                </>
+              )}
+            </>
+          )}
+        </div>
       </div>
 
       {/* ── Filter tabs ── */}
@@ -96,14 +225,12 @@ export default function NotificationsPage() {
 
       {/* ── Content ── */}
       {isLoading ? (
-        // Skeleton loading state
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-[68px] rounded-xl bg-muted/50 animate-pulse" />
           ))}
         </div>
       ) : paginated.length === 0 ? (
-        // Empty state
         <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-full bg-muted">
             <Bell className="h-6 w-6 text-muted-foreground/40" />
@@ -121,13 +248,34 @@ export default function NotificationsPage() {
           )}
         </div>
       ) : (
-        // Notification list
         <div className="overflow-hidden rounded-xl border border-border bg-card divide-y divide-border/60">
+          {/* Select-all row */}
+          {selectMode && (
+            <div className="flex items-center gap-3 px-5 py-3 bg-muted/30 border-b border-border">
+              <Checkbox
+                checked={allPageSelected}
+                data-state={somePageSelected && !allPageSelected ? 'indeterminate' : undefined}
+                onCheckedChange={toggleSelectAll}
+                aria-label="Select all on this page"
+              />
+              <span className="text-xs text-muted-foreground">
+                {allPageSelected
+                  ? 'All on this page selected'
+                  : somePageSelected
+                    ? `${selectedIds.size} selected`
+                    : 'Select all on this page'}
+              </span>
+            </div>
+          )}
           {paginated.map((notification) => (
             <NotificationCard
               key={notification.id}
               notification={notification}
-              onMarkRead={(id) => void markRead(id)}
+              onMarkRead={selectMode ? undefined : (id) => void markRead(id)}
+              onDelete={selectMode ? undefined : (id) => void handleDeleteOne(id)}
+              selectable={selectMode}
+              isSelected={selectedIds.has(notification.id)}
+              onSelectionChange={toggleSelection}
             />
           ))}
         </div>
@@ -159,6 +307,48 @@ export default function NotificationsPage() {
           </div>
         </div>
       )}
+
+      {/* ── Confirm Delete Selected dialog ── */}
+      <Dialog open={confirmDeleteSelected} onOpenChange={setConfirmDeleteSelected}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} notification{selectedIds.size !== 1 ? 's' : ''}?</DialogTitle>
+            <DialogDescription>
+              The selected notification{selectedIds.size !== 1 ? 's' : ''} will be permanently removed.
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteSelected(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDeleteSelected()} disabled={isDeleting}>
+              {isDeleting ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Confirm Delete All dialog ── */}
+      <Dialog open={confirmDeleteAll} onOpenChange={setConfirmDeleteAll}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete all notifications?</DialogTitle>
+            <DialogDescription>
+              All {notifications.length} notification{notifications.length !== 1 ? 's' : ''} will be
+              permanently removed. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteAll(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => void handleDeleteAll()} disabled={isDeleting}>
+              {isDeleting ? 'Deleting…' : 'Delete all'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

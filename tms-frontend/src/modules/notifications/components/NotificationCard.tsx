@@ -1,5 +1,6 @@
-import { Bell, CheckCircle, Calendar, Clock, FolderKanban, ListChecks } from 'lucide-react'
+import { Bell, CheckCircle, Calendar, Clock, FolderKanban, ListChecks, Trash2 } from 'lucide-react'
 import { cn } from '@/utils/cn'
+import { Checkbox } from '@/components/ui/Checkbox'
 import type { NotificationResponse, NotificationType } from '../types/notification.types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -61,21 +62,46 @@ function formatRelativeTime(iso: string): string {
 interface NotificationCardProps {
   notification: NotificationResponse
   onMarkRead?: (id: number) => void
+  onDelete?: (id: number) => void
+  /** When true the card shows a checkbox for bulk-selection. */
+  selectable?: boolean
+  isSelected?: boolean
+  onSelectionChange?: (id: number, checked: boolean) => void
   /** Compact mode: reduced padding, used inside the dropdown */
   compact?: boolean
 }
 
-export function NotificationCard({ notification, onMarkRead, compact = false }: NotificationCardProps) {
+export function NotificationCard({
+  notification,
+  onMarkRead,
+  onDelete,
+  selectable = false,
+  isSelected = false,
+  onSelectionChange,
+  compact = false,
+}: NotificationCardProps) {
   const Icon = getIcon(notification.type)
 
   return (
     <div
       className={cn(
-        'flex items-start gap-3 transition-colors',
+        'group flex items-start gap-3 transition-colors',
         compact ? 'px-3 py-2.5' : 'px-5 py-4',
         !notification.isRead ? 'bg-primary/[0.04]' : 'hover:bg-muted/40',
+        isSelected && 'bg-primary/10',
       )}
     >
+      {/* Selection checkbox */}
+      {selectable && (
+        <div className="flex items-center pt-0.5 shrink-0">
+          <Checkbox
+            checked={isSelected}
+            onCheckedChange={(checked) => onSelectionChange?.(notification.id, checked === true)}
+            aria-label="Select notification"
+          />
+        </div>
+      )}
+
       {/* Icon bubble */}
       <div
         className={cn(
@@ -97,16 +123,28 @@ export function NotificationCard({ notification, onMarkRead, compact = false }: 
           >
             {notification.title}
           </p>
-          {!notification.isRead && onMarkRead && (
-            <button
-              onClick={() => onMarkRead(notification.id)}
-              className="shrink-0 p-0.5 rounded text-muted-foreground hover:text-primary transition-colors"
-              title="Mark as read"
-              aria-label="Mark as read"
-            >
-              <CheckCircle className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1 shrink-0">
+            {!notification.isRead && onMarkRead && (
+              <button
+                onClick={() => onMarkRead(notification.id)}
+                className="p-0.5 rounded text-muted-foreground hover:text-primary transition-colors"
+                title="Mark as read"
+                aria-label="Mark as read"
+              >
+                <CheckCircle className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {onDelete && (
+              <button
+                onClick={() => onDelete(notification.id)}
+                className="p-0.5 rounded text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-destructive transition-all"
+                title="Delete notification"
+                aria-label="Delete notification"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{notification.message}</p>
         <p className="mt-1 text-[11px] text-muted-foreground/60">

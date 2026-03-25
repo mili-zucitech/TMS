@@ -38,7 +38,10 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/v1/auth/login",
-            "/api/v1/auth/refresh"
+            "/api/v1/auth/refresh",
+            // SMTP health check — used by monitoring/ops tools; safe to expose publicly
+            // (tests connectivity only, never reveals credentials or message content)
+            "/health/mail"
     };
 
     @Bean

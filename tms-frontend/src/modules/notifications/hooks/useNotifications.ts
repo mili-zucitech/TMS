@@ -3,6 +3,10 @@ import {
   useGetUserNotificationsQuery,
   useGetUnreadCountQuery,
   useMarkNotificationReadMutation,
+  useMarkAllNotificationsReadMutation,
+  useDeleteNotificationMutation,
+  useDeleteAllNotificationsMutation,
+  useDeleteSelectedNotificationsMutation,
 } from '@/features/notifications/notificationsApi'
 
 // ── useNotifications ──────────────────────────────────────────────────────────
@@ -15,6 +19,10 @@ export function useNotifications(userId: string | null) {
   } = useGetUserNotificationsQuery(userId!, { skip: !userId })
 
   const [markNotificationReadMutation] = useMarkNotificationReadMutation()
+  const [markAllNotificationsReadMutation] = useMarkAllNotificationsReadMutation()
+  const [deleteNotificationMutation] = useDeleteNotificationMutation()
+  const [deleteAllNotificationsMutation] = useDeleteAllNotificationsMutation()
+  const [deleteSelectedNotificationsMutation] = useDeleteSelectedNotificationsMutation()
 
   const markRead = useCallback(
     async (id: number) => {
@@ -24,14 +32,37 @@ export function useNotifications(userId: string | null) {
     [markNotificationReadMutation, userId],
   )
 
+  /** Marks all notifications as read in a single server request (efficient bulk update). */
   const markAllRead = useCallback(async () => {
     if (!userId) return
-    const unread = notifications.filter((n) => !n.isRead)
-    if (unread.length === 0) return
-    await Promise.all(unread.map((n) => markNotificationReadMutation({ id: n.id, userId }).unwrap()))
-  }, [markNotificationReadMutation, notifications, userId])
+    await markAllNotificationsReadMutation(userId).unwrap()
+  }, [markAllNotificationsReadMutation, userId])
 
-  return { notifications, isLoading, refresh, markRead, markAllRead }
+  /** Deletes a single notification by ID. */
+  const deleteOne = useCallback(
+    async (id: number) => {
+      if (!userId) return
+      await deleteNotificationMutation({ id, userId }).unwrap()
+    },
+    [deleteNotificationMutation, userId],
+  )
+
+  /** Deletes ALL notifications for the current user. */
+  const deleteAll = useCallback(async () => {
+    if (!userId) return
+    await deleteAllNotificationsMutation(userId).unwrap()
+  }, [deleteAllNotificationsMutation, userId])
+
+  /** Deletes the specified notification IDs for the current user. */
+  const deleteSelected = useCallback(
+    async (ids: number[]) => {
+      if (!userId || ids.length === 0) return
+      await deleteSelectedNotificationsMutation({ userId, ids }).unwrap()
+    },
+    [deleteSelectedNotificationsMutation, userId],
+  )
+
+  return { notifications, isLoading, refresh, markRead, markAllRead, deleteOne, deleteAll, deleteSelected }
 }
 
 // ── useUnreadCount ────────────────────────────────────────────────────────────
