@@ -6,6 +6,7 @@ import {
   useGetUsersQuery,
 } from '@/features/users/usersApi'
 import {
+  useGetTeamTimesheetsQuery,
   useGetTimesheetsByUserQuery,
   useGetTimesheetByIdQuery,
   useGetEntriesByTimesheetQuery,
@@ -16,6 +17,7 @@ import type { TimesheetResponse } from '../../types/timesheet.types'
 import type { UserResponse } from '@/modules/users/types/user.types'
 import type { ManagerTimesheetRow, ManagerRejectPayload } from '../types/managerTimesheet.types'
 import { calcDurationMinutes } from '../../utils/timesheetHelpers'
+
 
 function getMsg(err: unknown, fallback: string): string {
   const msg = (err as { data?: { message?: string } })?.data?.message
@@ -44,35 +46,48 @@ export function useManagerDashboard() {
     [allUsers, managerId],
   )
 
-  // We load timesheets for each direct report individually using separate queries.
-  // Since hooks can't be called inside loops, we pass all directReport IDs to a
-  // helper that uses skip to load only when needed.
-  // For simplicity, we aggregate all timesheets from the RTK cache via individual queries.
-  // The rows are computed from the available data.
+  // Fetch all timesheets for the manager's team in a single request
+  const {
+    data: teamTimesheets = [],
+    isLoading: isLoadingTimesheets,
+    error: timesheetsError,
+    refetch,
+  } = useGetTeamTimesheetsQuery(managerId!, { skip: !managerId })
+
+  // Build a lookup map: userId -> UserResponse
+  const userMap = useMemo(() => {
+    const map = new Map<string, UserResponse>()
+    allUsers.forEach((u) => map.set(u.id, u))
+    return map
+  }, [allUsers])
+
+  // Transform timesheets into ManagerTimesheetRow[], joining with employee data
+  const rows = useMemo<ManagerTimesheetRow[]>(() => {
+    return teamTimesheets
+      .map((ts) => {
+        const employee = userMap.get(ts.userId)
+        if (!employee) return null
+        return { timesheet: ts, employee, totalMinutes: 0 } satisfies ManagerTimesheetRow
+      })
+      .filter((r): r is ManagerTimesheetRow => r !== null)
+  }, [teamTimesheets, userMap])
+
   const [approveTimesheetMutation] = useApproveTimesheetMutation()
   const [rejectTimesheetMutation] = useRejectTimesheetMutation()
 
-  // NOTE: we pass managerId as a stable query arg; the parent component should
-  // re-render when managerId changes which will retrigger these hooks.
-  const isLoading = isLoadingUsers
-
-  const updateRow = useCallback(
-    (updated: TimesheetResponse) => {
-      // Cache invalidation via RTK tags handles the update automatically
-      void updated
-    },
-    [],
-  )
+  const isLoading = isLoadingUsers || isLoadingTimesheets
+  const error = timesheetsError
+    ? getMsg(timesheetsError, 'Failed to load team timesheets')
+    : null
 
   return {
     allUsers,
     managerUser,
     directReports,
     isLoading,
-    error: null,
-    rows: [] as ManagerTimesheetRow[], // populated by the page component via per-user queries
-    reload: () => undefined,
-    updateRow,
+    error,
+    rows,
+    reload: refetch,
     approveTimesheetMutation,
     rejectTimesheetMutation,
   }

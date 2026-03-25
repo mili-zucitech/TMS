@@ -16,6 +16,10 @@ export const timesheetsApi = baseApi.injectEndpoints({
       query: (userId) => `/timesheets/user/${userId}`,
       providesTags: (_result, _error, userId) => [{ type: 'Timesheet', id: userId }],
     }),
+    getTeamTimesheets: builder.query<TimesheetResponse[], string>({
+      query: (managerId) => `/timesheets/manager/${managerId}`,
+      providesTags: (_result, _error, managerId) => [{ type: 'Timesheet', id: `team-${managerId}` }],
+    }),
     getTimesheetById: builder.query<TimesheetResponse, number>({
       query: (id) => `/timesheets/${id}`,
       providesTags: (_result, _error, id) => [{ type: 'Timesheet', id }],
@@ -84,6 +88,7 @@ export const timesheetsApi = baseApi.injectEndpoints({
 
 export const {
   useGetTimesheetsByUserQuery,
+  useGetTeamTimesheetsQuery,
   useGetTimesheetByIdQuery,
   useCreateTimesheetMutation,
   useSubmitTimesheetMutation,

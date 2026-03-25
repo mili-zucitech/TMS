@@ -86,6 +86,16 @@ public class TimesheetController {
                 "Timesheet rejected"));
     }
 
+    /** Returns all timesheets for every direct report of the given manager. */
+    @GetMapping("/manager/{managerId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'DIRECTOR') or authentication.name == @userService.getUserEmailById(#managerId)")
+    public ResponseEntity<ApiResponse<List<TimesheetResponse>>> getTeamTimesheets(
+            @PathVariable UUID managerId) {
+        log.debug("GET /api/v1/timesheets/manager/{}", managerId);
+        return ResponseEntity.ok(ApiResponse.success(
+                timesheetService.getTimesheetsForTeam(managerId), "Team timesheets retrieved"));
+    }
+
     /** Locks an APPROVED timesheet, preventing any further modifications. ADMIN only. */
     @PostMapping("/{id}/lock")
     @PreAuthorize("hasRole('ADMIN')")

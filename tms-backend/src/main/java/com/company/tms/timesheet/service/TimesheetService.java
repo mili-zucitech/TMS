@@ -182,6 +182,23 @@ public class TimesheetService {
     }
 
     /**
+     * Returns all timesheets for every direct report of the given manager.
+     * Direct reports are users whose managerId equals the given managerId.
+     */
+    public List<TimesheetResponse> getTimesheetsForTeam(UUID managerId) {
+        List<UUID> directReportIds = userRepository.findByManagerId(managerId)
+                .stream()
+                .map(User::getId)
+                .collect(Collectors.toList());
+        if (directReportIds.isEmpty()) {
+            return List.of();
+        }
+        return timesheetRepository.findByUserIdIn(directReportIds).stream()
+                .map(timesheetMapper::toTimesheetResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
      * Returns true if the given email belongs to the owner of the specified timesheet.
      * Used in @PreAuthorize expressions.
      */
