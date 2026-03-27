@@ -169,8 +169,11 @@ export function TimesheetLeaveModal({
       })
       toast.success('Leave applied successfully')
       onSuccess(leave)
-    } catch {
-      toast.error('Failed to apply leave')
+    } catch (err) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ??
+        'Failed to apply leave'
+      toast.error(msg)
     } finally {
       setIsSubmitting(false)
     }

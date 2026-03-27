@@ -42,6 +42,22 @@ public interface LeaveRepository extends JpaRepository<Leave, Long> {
             @Param("excludeId") Long excludeId);
 
     /**
+     * Finds pending leave requests that overlap with the given date range for a user.
+     * Prevents duplicate pending requests for the same dates.
+     */
+    @Query("SELECT l FROM Leave l " +
+           "WHERE l.userId = :userId " +
+           "AND l.status = 'PENDING' " +
+           "AND l.startDate <= :endDate " +
+           "AND l.endDate >= :startDate " +
+           "AND l.id <> :excludeId")
+    List<Leave> findPendingOverlappingLeaves(
+            @Param("userId") UUID userId,
+            @Param("startDate") LocalDate startDate,
+            @Param("endDate") LocalDate endDate,
+            @Param("excludeId") Long excludeId);
+
+    /**
      * Checks whether an approved leave covers the given workDate (for timesheet conflict check).
      */
     @Query("SELECT COUNT(l) > 0 FROM Leave l " +

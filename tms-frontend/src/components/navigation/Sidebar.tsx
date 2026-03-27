@@ -270,7 +270,7 @@ function SidebarContent({
           </div>
         </nav>
 
-        {/* ── Footer ────────────────────────────────────── */}
+        {/* ── Footer ────────────────────────────────────────── */}
         <div
           className={cn(
             'shrink-0 border-t border-border',

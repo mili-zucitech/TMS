@@ -23,6 +23,16 @@ import { useIsMobile } from '@/hooks/useIsMobile'
 
 type ViewMode = 'table' | 'calendar'
 
+function getErrorMessage(err: unknown, fallback: string): string {
+  // RTK Query error: { data: { message: string } }
+  const rtkMsg = (err as { data?: { message?: string } })?.data?.message
+  if (rtkMsg) return rtkMsg
+  // Axios error: { response: { data: { message: string } } }
+  const axiosMsg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message
+  if (axiosMsg) return axiosMsg
+  return fallback
+}
+
 export function LeaveDashboardPage() {
   const { user } = useAuth()
   const userId = user?.userId ?? null
@@ -56,8 +66,8 @@ export function LeaveDashboardPage() {
     try {
       await submitLeave(payload)
       setApplyOpen(false)
-    } catch {
-      toast.error('Failed to submit leave request')
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to submit leave request'))
     } finally {
       setIsMutating(false)
     }

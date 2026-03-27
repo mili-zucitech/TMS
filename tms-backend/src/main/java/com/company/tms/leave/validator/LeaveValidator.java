@@ -66,17 +66,22 @@ public class LeaveValidator {
     }
 
     /**
-     * Validates that no approved leave request overlaps the given date range for the user.
+     * Validates that no approved or pending leave request overlaps the given date range for the user.
      * Pass excludeId = -1L for new requests.
      */
     public void validateNoApprovedLeaveOverlap(UUID userId, LocalDate startDate,
                                                 LocalDate endDate, Long excludeId) {
-        var overlaps = leaveRepository.findApprovedOverlappingLeaves(
+        var approvedOverlaps = leaveRepository.findApprovedOverlappingLeaves(
                 userId, startDate, endDate, excludeId);
-        if (!overlaps.isEmpty()) {
+        if (!approvedOverlaps.isEmpty()) {
             throw new LeaveOverlapException(
-                    "The requested dates overlap with an existing approved leave for user " + userId
-                            + " (" + startDate + " – " + endDate + ").");
+                    "The requested dates overlap with an existing approved leave (" + startDate + " – " + endDate + ").");
+        }
+        var pendingOverlaps = leaveRepository.findPendingOverlappingLeaves(
+                userId, startDate, endDate, excludeId);
+        if (!pendingOverlaps.isEmpty()) {
+            throw new LeaveOverlapException(
+                    "A leave request for these dates is already pending (" + startDate + " – " + endDate + ").");
         }
     }
 
