@@ -66,7 +66,7 @@ export function AboutSection() {
         <div className="space-y-2">
           <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Technology Stack</p>
           <div className="flex flex-wrap gap-2">
-            {['React 18', 'TypeScript', 'Tailwind CSS', 'Spring Boot 3', 'PostgreSQL', 'JWT Auth'].map((t) => (
+            {['React 18', 'TypeScript', 'Tailwind CSS', 'Spring Boot 3', 'MySQL', 'JWT Auth'].map((t) => (
               <Badge key={t} variant="secondary">{t}</Badge>
             ))}
           </div>
