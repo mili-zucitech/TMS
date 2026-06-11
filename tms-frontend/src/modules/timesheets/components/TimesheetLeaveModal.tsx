@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { CalendarRange, AlertTriangle, CheckCircle2 } from 'lucide-react'
@@ -16,6 +16,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import { applyLeave } from '@/modules/leaves/services/leaveService'
 import type {
@@ -106,6 +107,7 @@ export function TimesheetLeaveModal({
     handleSubmit,
     reset,
     watch,
+    control,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -282,28 +284,30 @@ export function TimesheetLeaveModal({
               <Label htmlFor="ts-leave-type">
                 Leave Type <span className="text-destructive">*</span>
               </Label>
-              <select
-                id="ts-leave-type"
-                className={cn(
-                  'flex h-10 w-full rounded-lg border bg-background px-3 py-2 text-sm',
-                  'ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1',
-                  errors.leaveTypeId
-                    ? 'border-destructive'
-                    : 'border-input hover:border-muted-foreground/50',
+              <Controller
+                name="leaveTypeId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="ts-leave-type"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    error={!!errors.leaveTypeId}
+                    options={[
+                      { value: '', label: 'Select leave type…' },
+                      ...leaveTypes.map((t) => {
+                        const bal = balances.find((b) => b.leaveTypeId === t.id)
+                        return {
+                          value: String(t.id),
+                          label: bal?.remainingLeaves != null
+                            ? `${t.name} — ${bal.remainingLeaves} days left`
+                            : t.name,
+                        }
+                      }),
+                    ]}
+                  />
                 )}
-                {...register('leaveTypeId')}
-              >
-                <option value="">Select leave type…</option>
-                {leaveTypes.map((t) => {
-                  const bal = balances.find((b) => b.leaveTypeId === t.id)
-                  return (
-                    <option key={t.id} value={t.id}>
-                      {t.name}
-                      {bal?.remainingLeaves != null ? ` — ${bal.remainingLeaves} days left` : ''}
-                    </option>
-                  )
-                })}
-              </select>
+              />
               {errors.leaveTypeId && (
                 <p className="text-xs text-destructive">{errors.leaveTypeId.message}</p>
               )}

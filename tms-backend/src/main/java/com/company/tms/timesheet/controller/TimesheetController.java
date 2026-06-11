@@ -1,9 +1,9 @@
 package com.company.tms.timesheet.controller;
 
-import com.company.tms.timesheet.dto.TimesheetApproveRequest;
 import com.company.tms.timesheet.dto.TimesheetCreateRequest;
 import com.company.tms.timesheet.dto.TimesheetRejectRequest;
 import com.company.tms.timesheet.dto.TimesheetResponse;
+import com.company.tms.timesheet.dto.TimesheetSubmitRequest;
 import com.company.tms.timesheet.service.TimesheetService;
 import com.company.tms.util.ApiResponse;
 import jakarta.validation.Valid;
@@ -43,35 +43,40 @@ public class TimesheetController {
         return ResponseEntity.ok(ApiResponse.success(timesheetService.getTimesheetById(id), "Timesheet retrieved"));
     }
 
-    /** Returns all timesheets for a given user. */
+    /** Returns all timesheets for a given user, optionally filtered by year, month and/or ISO week. */
     @GetMapping("/user/{userId}")
     @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'DIRECTOR') or authentication.name == @userService.getUserEmailById(#userId) or @userService.isReportingManager(authentication.name, #userId)")
     public ResponseEntity<ApiResponse<List<TimesheetResponse>>> getTimesheetsByUser(
-            @PathVariable UUID userId) {
-        log.debug("GET /api/v1/timesheets/user/{}", userId);
-        return ResponseEntity.ok(ApiResponse.success(
-                timesheetService.getTimesheetsByUser(userId), "Timesheets retrieved"));
+            @PathVariable UUID userId,
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) Integer month,
+            @RequestParam(required = false) Integer week) {
+        log.debug("GET /api/v1/timesheets/user/{} year={} month={} week={}", userId, year, month, week);
+        List<TimesheetResponse> result = (year != null || month != null || week != null)
+                ? timesheetService.getTimesheetsByUserFiltered(userId, year, month, week)
+                : timesheetService.getTimesheetsByUser(userId);
+        return ResponseEntity.ok(ApiResponse.success(result, "Timesheets retrieved"));
     }
 
     /** Submits a DRAFT or REJECTED timesheet for approval. */
     @PostMapping("/{id}/submit")
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<TimesheetResponse>> submitTimesheet(@PathVariable Long id) {
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetService.isOwnerOfTimesheet(authentication.name, #id)")
+    public ResponseEntity<ApiResponse<TimesheetResponse>> submitTimesheet(
+            @PathVariable Long id,
+            @RequestBody(required = false) TimesheetSubmitRequest request) {
         log.debug("POST /api/v1/timesheets/{}/submit", id);
         return ResponseEntity.ok(ApiResponse.success(
-                timesheetService.submitTimesheet(id), "Timesheet submitted successfully"));
+                timesheetService.submitTimesheet(id, request), "Timesheet submitted successfully"));
     }
 
     /** Approves a SUBMITTED timesheet. MANAGER/ADMIN only. */
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR') or @timesheetService.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TimesheetResponse>> approveTimesheet(
-            @PathVariable Long id,
-            @RequestBody(required = false) TimesheetApproveRequest request) {
+            @PathVariable Long id) {
         log.debug("POST /api/v1/timesheets/{}/approve", id);
-        UUID approverId = (request != null) ? request.getApprovedBy() : null;
         return ResponseEntity.ok(ApiResponse.success(
-                timesheetService.approveTimesheet(id, approverId), "Timesheet approved"));
+                timesheetService.approveTimesheet(id), "Timesheet approved"));
     }
 
     /** Rejects a SUBMITTED timesheet with a mandatory reason. MANAGER/ADMIN only. */
@@ -82,7 +87,7 @@ public class TimesheetController {
             @Valid @RequestBody TimesheetRejectRequest request) {
         log.debug("POST /api/v1/timesheets/{}/reject", id);
         return ResponseEntity.ok(ApiResponse.success(
-                timesheetService.rejectTimesheet(id, request.getApprovedBy(), request.getRejectionReason()),
+                timesheetService.rejectTimesheet(id, request.getRejectionReason()),
                 "Timesheet rejected"));
     }
 

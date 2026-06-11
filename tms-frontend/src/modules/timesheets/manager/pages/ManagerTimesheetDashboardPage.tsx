@@ -14,6 +14,7 @@ import {
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { AppSelect } from '@/components/ui/Select'
 import { TimesheetStatusBadge } from '../../components/TimesheetStatusBadge'
 import { useManagerDashboard } from '../hooks/useManagerTimesheets'
 import {
@@ -21,11 +22,6 @@ import {
 } from '../../utils/timesheetHelpers'
 import { StatCard } from '@/components/ui/StatCard'
 import type { ManagerTimesheetRow } from '../types/managerTimesheet.types'
-
-const selectClass =
-  'flex h-9 rounded-lg border border-input bg-background px-3 py-1.5 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors'
 
 // ────────────────────────────────────────────────────────────────────────────
 // Mobile card for small screens
@@ -87,9 +83,15 @@ export default function ManagerTimesheetDashboardPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('')
 
+  // Managers only see timesheets that have been submitted (not DRAFT)
+  const visibleRows = useMemo(
+    () => rows.filter((r) => r.timesheet.status !== 'DRAFT'),
+    [rows],
+  )
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    return rows.filter((r) => {
+    return visibleRows.filter((r) => {
       const matchName =
         !q ||
         r.employee.name.toLowerCase().includes(q) ||
@@ -97,11 +99,11 @@ export default function ManagerTimesheetDashboardPage() {
       const matchStatus = !statusFilter || r.timesheet.status === statusFilter
       return matchName && matchStatus
     })
-  }, [rows, search, statusFilter])
+  }, [visibleRows, search, statusFilter])
 
-  const pendingCount  = rows.filter((r) => r.timesheet.status === 'SUBMITTED').length
-  const approvedCount = rows.filter((r) => r.timesheet.status === 'APPROVED').length
-  const rejectedCount = rows.filter((r) => r.timesheet.status === 'REJECTED').length
+  const pendingCount  = visibleRows.filter((r) => r.timesheet.status === 'SUBMITTED').length
+  const approvedCount = visibleRows.filter((r) => r.timesheet.status === 'APPROVED').length
+  const rejectedCount = visibleRows.filter((r) => r.timesheet.status === 'REJECTED').length
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,7 +136,7 @@ export default function ManagerTimesheetDashboardPage() {
 
         {/* ── Stat cards ─────────────────────────────────────────── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <StatCard icon={Users}         label="Team Members"  value={new Set(rows.map((r) => r.employee.id)).size} />
+          <StatCard icon={Users}         label="Team Members"  value={new Set(visibleRows.map((r) => r.employee.id)).size} />
           <StatCard icon={ClipboardCheck} label="Pending Review" value={pendingCount} />
           <StatCard icon={CheckCircle2}   label="Approved"      value={approvedCount} />
           <StatCard icon={XCircle}        label="Rejected"      value={rejectedCount} />
@@ -172,29 +174,35 @@ export default function ManagerTimesheetDashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className={selectClass}
-            >
-              <option value="">All statuses</option>
-              <option value="SUBMITTED">Submitted</option>
-              <option value="APPROVED">Approved</option>
-              <option value="REJECTED">Rejected</option>
-            </select>
+            <div className="w-40">
+              <AppSelect
+                value={statusFilter}
+                onChange={(v) => setStatusFilter(String(v))}
+                options={[
+                  { value: '', label: 'All statuses' },
+                  { value: 'SUBMITTED', label: 'Submitted' },
+                  { value: 'APPROVED', label: 'Approved' },
+                  { value: 'REJECTED', label: 'Rejected' },
+                ]}
+                placeholder="All statuses"
+                isSearchable={false}
+                size="sm"
+              />
+            </div>
           </div>
         </div>
 
         {/* ── Desktop table ──────────────────────────────────────── */}
         <div className="hidden sm:block rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Employee</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Week</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden lg:table-cell">Submitted</th>
-                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground w-32">Actions</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Employee</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Week</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Submitted</th>
+                <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap w-32">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -212,8 +220,8 @@ export default function ManagerTimesheetDashboardPage() {
               {!isLoading && filtered.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-12 text-center text-sm text-muted-foreground">
-                    {rows.length === 0
-                      ? 'No timesheets found for your team.'
+                    {visibleRows.length === 0
+                      ? 'No submitted timesheets found for your team.'
                       : 'No results match your search / filter.'}
                   </td>
                 </tr>
@@ -235,7 +243,7 @@ export default function ManagerTimesheetDashboardPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <p className="font-medium">
                         {formatMediumDate(row.timesheet.weekStartDate)}
                       </p>
@@ -243,12 +251,12 @@ export default function ManagerTimesheetDashboardPage() {
                         → {formatMediumDate(row.timesheet.weekEndDate)}
                       </p>
                     </td>
-                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">
+                    <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground whitespace-nowrap">
                       {row.timesheet.submittedAt
                         ? formatMediumDate(row.timesheet.submittedAt.split('T')[0])
                         : '—'}
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-4 py-3 text-center whitespace-nowrap">
                       <TimesheetStatusBadge status={row.timesheet.status} />
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -267,10 +275,11 @@ export default function ManagerTimesheetDashboardPage() {
                 ))}
             </tbody>
           </table>
+          </div>
 
           {!isLoading && filtered.length > 0 && (
             <div className="px-4 py-3 border-t border-border/50 bg-muted/10 text-xs text-muted-foreground">
-              Showing {filtered.length} of {rows.length} timesheets
+              Showing {filtered.length} of {visibleRows.length} timesheets
             </div>
           )}
         </div>
@@ -283,8 +292,8 @@ export default function ManagerTimesheetDashboardPage() {
             ))}
           {!isLoading && filtered.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-12">
-              {rows.length === 0
-                ? 'No timesheets found for your team.'
+              {visibleRows.length === 0
+                ? 'No submitted timesheets found for your team.'
                 : 'No results match your search / filter.'}
             </p>
           )}

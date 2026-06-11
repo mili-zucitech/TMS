@@ -84,13 +84,12 @@ public class DataInitializer implements ApplicationRunner {
                     .role(role)
                     .build());
 
-            log.info("Seeded user: {} / {} [{}]", seed.email(), seed.password(), seed.role());
+            log.info("Seeded user: {} [{}]", seed.email(), seed.role());
         });
 
         log.info("========================================================");
-        log.info("  Default users:");
-        log.info("  admin@tms.com    / Admin@123    [ADMIN]");
-        log.info("  CHANGE THESE PASSWORDS BEFORE GOING TO PRODUCTION!");
+        log.info("  Default users have been seeded. Check application config");
+        log.info("  for seed credentials. CHANGE PASSWORDS BEFORE PRODUCTION!");
         log.info("========================================================");
     }
 }

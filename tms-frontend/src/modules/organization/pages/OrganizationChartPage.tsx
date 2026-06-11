@@ -1,12 +1,54 @@
-﻿import { useEffect, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { Building2, RefreshCw, AlertCircle } from 'lucide-react'
 import type { AxiosError } from 'axios'
 
 import { Button } from '@/components/ui/Button'
 import { OrgChart } from '../components/OrgChart'
 import organizationService from '../services/organizationService'
-import type { OrganizationDepartment } from '../types/organization.types'
+import { useGetUsersQuery } from '@/features/users/usersApi'
+import type { OrganizationDepartment, HierarchyDepartment, HierarchyMember } from '../types/organization.types'
 import type { ApiResponse } from '@/types/api.types'
+
+const MANAGER_ROLES = new Set(['MANAGER', 'HR_MANAGER', 'DIRECTOR', 'ADMIN'])
+
+function buildHierarchy(
+  departments: OrganizationDepartment[],
+  allUsers: HierarchyMember[],
+): HierarchyDepartment[] {
+  return departments.map((dept) => {
+    const deptUsers = allUsers.filter((u) => {
+      // Match departmentId via the raw UserResponse field (cast from HierarchyMember extra)
+      return (u as unknown as { departmentId: number | null }).departmentId === dept.id
+    })
+
+    const managers = deptUsers.filter((u) => MANAGER_ROLES.has(u.roleName))
+    const managerIds = new Set(managers.map((m) => m.id))
+
+    const hierarchyManagers = managers.map((mgr) => ({
+      user: mgr,
+      directReports: deptUsers.filter(
+        (u) => !managerIds.has(u.id) &&
+          (u as unknown as { managerId: string | null }).managerId === mgr.id,
+      ),
+    }))
+
+    const assignedIds = new Set(
+      hierarchyManagers.flatMap((hm) => hm.directReports.map((r) => r.id)),
+    )
+
+    const unassigned = deptUsers.filter(
+      (u) => !managerIds.has(u.id) && !assignedIds.has(u.id),
+    )
+
+    return {
+      id: dept.id,
+      name: dept.name,
+      description: dept.description,
+      managers: hierarchyManagers,
+      unassigned,
+    }
+  })
+}
 
 function getErrorMessage(err: unknown): string {
   const axiosErr = err as AxiosError<ApiResponse<unknown>>
@@ -46,11 +88,23 @@ function OrgChartSkeleton() {
 
 export default function OrganizationChartPage() {
   const [departments, setDepartments] = useState<OrganizationDepartment[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [deptLoading, setDeptLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const { data: usersPage, isLoading: usersLoading, refetch: refetchUsers } = useGetUsersQuery({ size: 500 })
+  const allUsers = useMemo(
+    () => (usersPage?.content ?? []) as unknown as HierarchyMember[],
+    [usersPage],
+  )
+  const isLoading = deptLoading || usersLoading
+
+  const hierarchy = useMemo(
+    () => buildHierarchy(departments, allUsers),
+    [departments, allUsers],
+  )
+
   const fetchData = async () => {
-    setIsLoading(true)
+    setDeptLoading(true)
     setError(null)
     try {
       const data = await organizationService.getDepartments()
@@ -58,8 +112,13 @@ export default function OrganizationChartPage() {
     } catch (err) {
       setError(getErrorMessage(err))
     } finally {
-      setIsLoading(false)
+      setDeptLoading(false)
     }
+  }
+
+  const handleRefresh = () => {
+    void fetchData()
+    void refetchUsers()
   }
 
   useEffect(() => {
@@ -81,7 +140,7 @@ export default function OrganizationChartPage() {
               <p className="text-sm text-muted-foreground">
                 {isLoading
                   ? 'Loading...'
-                  : `${departments.length} department${departments.length !== 1 ? 's' : ''} Â· ${departments.reduce((n, d) => n + d.employees.length, 0)} employees`}
+                  : `${departments.length} department${departments.length !== 1 ? 's' : ''} · ${hierarchy.reduce((n, d) => n + d.managers.reduce((m, mg) => m + mg.directReports.length, 0) + d.unassigned.length, 0)} employees`}
               </p>
             </div>
           </div>
@@ -90,7 +149,7 @@ export default function OrganizationChartPage() {
             variant="outline"
             size="icon"
             className="h-9 w-9 shrink-0"
-            onClick={() => void fetchData()}
+            onClick={handleRefresh}
             disabled={isLoading}
             title="Refresh"
           >
@@ -110,7 +169,7 @@ export default function OrganizationChartPage() {
               variant="ghost"
               size="sm"
               className="ml-auto text-destructive hover:text-destructive"
-              onClick={() => void fetchData()}
+              onClick={handleRefresh}
             >
               Retry
             </Button>
@@ -132,7 +191,7 @@ export default function OrganizationChartPage() {
                 <p className="text-sm text-muted-foreground">No departments found.</p>
               </div>
             ) : (
-              <OrgChart departments={departments} />
+              <OrgChart hierarchy={hierarchy} />
             )}
           </div>
         )}

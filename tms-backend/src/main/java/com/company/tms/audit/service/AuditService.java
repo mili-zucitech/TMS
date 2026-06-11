@@ -6,6 +6,8 @@ import com.company.tms.audit.mapper.AuditMapper;
 import com.company.tms.audit.repository.AuditRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,11 +39,9 @@ public class AuditService {
     // -------------------------------------------------------------------------
 
     @Transactional(readOnly = true)
-    public List<AuditLogResponse> getAllLogs() {
-        return auditRepository.findAll()
-                .stream()
-                .map(auditMapper::toAuditLogResponse)
-                .collect(Collectors.toList());
+    public Page<AuditLogResponse> getAllLogs(Pageable pageable) {
+        return auditRepository.findAll(pageable)
+                .map(auditMapper::toAuditLogResponse);
     }
 
     @Transactional(readOnly = true)

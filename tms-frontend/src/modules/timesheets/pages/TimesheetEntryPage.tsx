@@ -5,6 +5,7 @@ import {
   Briefcase,
   CalendarX2,
   Clock,
+  Copy,
   RefreshCw,
   Send,
   AlertCircle,
@@ -13,12 +14,14 @@ import {
   Plus,
   SunMedium,
   X,
+  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import type { AxiosError } from 'axios'
 
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
+import { AppSelect } from '@/components/ui/Select'
 import {
   Dialog,
   DialogContent,
@@ -32,8 +35,10 @@ import { useTimesheet, useTimeEntries } from '../hooks/useTimesheets'
 import timesheetService from '../services/timesheetService'
 import { TimesheetStatusBadge } from '../components/TimesheetStatusBadge'
 import { TimesheetDetailsView } from '../components/TimesheetDetailsView'
+import { TimePicker12 } from '../components/TimePicker12'
 import { TimeEntryRow } from '../components/TimeEntryRow'
 import { AddEntryRow } from '../components/AddEntryRow'
+import { CopyWeekDialog } from '../components/CopyWeekDialog'
 import {
   getWeekStart,
   toDateString,
@@ -42,8 +47,10 @@ import {
   formatMediumDate,
   formatDuration,
   calcDurationMinutes,
+  format12h,
   stripSeconds,
   timesOverlap,
+  splitOvertimeEntries,
 } from '../utils/timesheetHelpers'
 import type { ApiResponse } from '@/types/api.types'
 import type {
@@ -272,6 +279,19 @@ export default function TimesheetEntryPage() {
   // ── Submit dialog ───────────────────────────────────────────────────
   const [submitOpen, setSubmitOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [overtimeReason, setOvertimeReason] = useState('')
+  const [copyOpen, setCopyOpen] = useState(false)
+
+  // Detect if any day this week has more than 8h logged
+  const hasOvertimeThisWeek = useMemo(() => {
+    return weekDates.some((date) => {
+      const dayMins = (entriesByDate[date] ?? []).reduce(
+        (sum, e) => sum + (e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime)),
+        0,
+      )
+      return dayMins > 480
+    })
+  }, [weekDates, entriesByDate])
 
   const handleSubmit = async () => {
     if (!timesheetId) return
@@ -295,9 +315,13 @@ export default function TimesheetEntryPage() {
 
     setIsSubmitting(true)
     try {
-      const updated = await timesheetService.submitTimesheet(timesheetId)
+      const updated = await timesheetService.submitTimesheet(
+        timesheetId,
+        hasOvertimeThisWeek && overtimeReason.trim() ? { overtimeReason: overtimeReason.trim() } : undefined,
+      )
       toast.success('Timesheet submitted successfully!')
       void updated
+      setOvertimeReason('')
       void fetchTimesheet()
     } catch (err) {
       toast.error(getErrorMessage(err, 'Failed to submit timesheet'))
@@ -387,6 +411,18 @@ export default function TimesheetEntryPage() {
               <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             </Button>
 
+            {canEdit && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 h-9"
+                onClick={() => setCopyOpen(true)}
+              >
+                <Copy className="h-4 w-4" />
+                Copy from week
+              </Button>
+            )}
+
             {canSubmit && (
               <Button
                 onClick={() => setSubmitOpen(true)}
@@ -427,17 +463,23 @@ export default function TimesheetEntryPage() {
           <div className="space-y-3">
             {weekDates.map((date) => {
               const dayEntries = entriesByDate[date] ?? []
-              const dayMinutes = dayEntries.reduce(
-                (sum, e) =>
-                  sum + (e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime)),
+              const { regular: regularEntries, overtime: overtimeEntries } = splitOvertimeEntries(dayEntries)
+              const regularMinutes = regularEntries.reduce(
+                (sum, e) => sum + (e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime)),
                 0,
               )
+              const dayMinutes = regularMinutes + overtimeEntries.reduce(
+                (sum, e) => sum + (e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime)),
+                0,
+              )
+              const overtimeMinutes = Math.max(0, dayMinutes - 480)
 
               const leaveForDay = leaveDayMap[date]
               const dayKind = dayKindMap[date] ?? 'work'
               const isOverridden = overriddenDays.has(date)
               // A day is "collapsed" (work-off / holiday) when it's weekend/holiday AND not overridden
-              const isCollapsed = (dayKind === 'weekend' || dayKind === 'holiday') && !isOverridden
+              // AND has no logged entries — if entries exist, always show expanded.
+              const isCollapsed = (dayKind === 'weekend' || dayKind === 'holiday') && !isOverridden && dayEntries.length === 0
 
               return (
                 <div
@@ -500,6 +542,12 @@ export default function TimesheetEntryPage() {
                         <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mr-1">
                           <Clock className="h-3.5 w-3.5" />
                           {formatDuration(dayMinutes)}
+                          {overtimeMinutes > 0 && (
+                            <span className="ml-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                              <Zap className="h-3 w-3" />
+                              {formatDuration(overtimeMinutes)} OT
+                            </span>
+                          )}
                         </span>
                       )}
 
@@ -572,7 +620,7 @@ export default function TimesheetEntryPage() {
                         </thead>
                       )}
                       <tbody>
-                        {dayEntries.map((entry) => (
+                        {regularEntries.map((entry) => (
                           <TimeEntryRow
                             key={entry.id}
                             entry={entry}
@@ -582,6 +630,31 @@ export default function TimesheetEntryPage() {
                             projects={projects.map((p) => ({ id: p.id, name: p.name }))}
                             tasks={taskList}
                             isEditable={canEdit && !leaveForDay}
+                            onUpdate={updateEntry}
+                            onDelete={deleteEntry}
+                          />
+                        ))}
+                        {overtimeEntries.length > 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-3 py-1.5 bg-amber-500/[0.06] border-y border-amber-500/20">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                <Zap className="h-3 w-3" />
+                                Overtime · {formatDuration(overtimeMinutes)}
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                        {overtimeEntries.map((entry) => (
+                          <TimeEntryRow
+                            key={entry.id}
+                            entry={entry}
+                            allDayEntries={dayEntries}
+                            projectNames={projectNames}
+                            taskNames={taskNames}
+                            projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+                            tasks={taskList}
+                            isEditable={canEdit && !leaveForDay}
+                            isOvertime
                             onUpdate={updateEntry}
                             onDelete={deleteEntry}
                           />
@@ -609,7 +682,7 @@ export default function TimesheetEntryPage() {
                     {dayEntries.length === 0 && !leaveForDay && (
                       <p className="px-4 py-3 text-sm text-muted-foreground italic">No entries</p>
                     )}
-                    {dayEntries.map((e) => (
+                    {regularEntries.map((e) => (
                       <MobileEntryCard
                         key={e.id}
                         entry={e}
@@ -617,6 +690,23 @@ export default function TimesheetEntryPage() {
                         taskNames={taskNames}
                         onDelete={canEdit ? deleteEntry : undefined}
                         onEdit={canEdit ? () => {} : undefined}
+                      />
+                    ))}
+                    {overtimeEntries.length > 0 && (
+                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500/[0.06] border-y border-amber-500/20 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                        <Zap className="h-3 w-3" />
+                        Overtime · {formatDuration(overtimeMinutes)}
+                      </div>
+                    )}
+                    {overtimeEntries.map((e) => (
+                      <MobileEntryCard
+                        key={e.id}
+                        entry={e}
+                        projectNames={projectNames}
+                        taskNames={taskNames}
+                        onDelete={canEdit ? deleteEntry : undefined}
+                        onEdit={canEdit ? () => {} : undefined}
+                        isOvertime
                       />
                     ))}
                     {currentUser && canEdit && !leaveForDay && (
@@ -664,6 +754,23 @@ export default function TimesheetEntryPage() {
         />
       )}
 
+      {/* ── Copy from week dialog ─────────────────────────────────── */}
+      {canEdit && currentUser && (
+        <CopyWeekDialog
+          open={copyOpen}
+          onOpenChange={setCopyOpen}
+          currentTimesheet={timesheet}
+          userId={currentUser.id}
+          weekDates={weekDates}
+          existingEntries={entries}
+          leaveDayMap={leaveDayMap}
+          dayKindMap={dayKindMap}
+          projects={projects.map((p) => ({ id: p.id, name: p.name }))}
+          tasks={taskList}
+          createEntry={createEntry}
+        />
+      )}
+
       {/* ── Submit confirmation dialog ────────────────────────────── */}
       <Dialog open={submitOpen} onOpenChange={setSubmitOpen}>
         <DialogContent className="max-w-md">
@@ -683,6 +790,27 @@ export default function TimesheetEntryPage() {
               Once submitted, you cannot edit it until it is rejected.
             </DialogDescription>
           </DialogHeader>
+
+          {hasOvertimeThisWeek && (
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <Zap className="h-3.5 w-3.5 text-amber-500" />
+                Overtime reason
+                <span className="text-xs text-muted-foreground font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={overtimeReason}
+                onChange={(e) => setOvertimeReason(e.target.value)}
+                placeholder="Briefly explain why you worked overtime this week…"
+                rows={3}
+                maxLength={500}
+                disabled={isSubmitting}
+                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 disabled:opacity-50 resize-none"
+              />
+              <p className="text-xs text-muted-foreground text-right">{overtimeReason.length}/500</p>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setSubmitOpen(false)} disabled={isSubmitting}>
               Cancel
@@ -707,22 +835,24 @@ function MobileEntryCard({
   projectNames,
   taskNames,
   onDelete,
+  isOvertime = false,
 }: {
   entry: TimeEntryResponse
   projectNames: Record<number, string>
   taskNames: Record<number, string>
   onDelete?: (id: number) => Promise<boolean>
   onEdit?: () => void
+  isOvertime?: boolean
 }) {
   const duration =
     entry.durationMinutes ?? calcDurationMinutes(entry.startTime, entry.endTime)
 
   return (
-    <div className="px-4 py-3 space-y-1">
+    <div className={cn('px-4 py-3 space-y-1', isOvertime && 'bg-amber-500/[0.04]')}>
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium">{projectNames[entry.projectId] ?? `#${entry.projectId}`}</span>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
+        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
             {formatDuration(duration)}
           </span>
           {onDelete && (
@@ -734,8 +864,8 @@ function MobileEntryCard({
         </div>
       </div>
       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-        <span className="font-mono">
-          {stripSeconds(entry.startTime)} – {stripSeconds(entry.endTime)}
+        <span className="font-mono whitespace-nowrap">
+          {format12h(entry.startTime)} – {format12h(entry.endTime)}
         </span>
         {entry.taskId && <span>· {taskNames[entry.taskId] ?? `Task #${entry.taskId}`}</span>}
       </div>
@@ -766,8 +896,6 @@ function MobileAddEntry({
   const [endTime, setEndTime] = useState('')
   const [isSaving, setIsSaving] = useState(false)
 
-  const selectClass = 'h-9 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring'
-
   const handleSave = async () => {
     if (projectId === '' || !startTime || !endTime) { toast.error('Fill all required fields'); return }
     if (startTime >= endTime) { toast.error('End must be after start'); return }
@@ -790,15 +918,20 @@ function MobileAddEntry({
 
   return (
     <div className="space-y-2 pt-1">
-      <select value={projectId} onChange={(e) => setProjectId(Number(e.target.value))} className={selectClass}>
-        <option value="">— Project —</option>
-        {projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-      </select>
-      <div className="flex gap-2">
-        <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
-          className="h-9 flex-1 rounded-lg border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
-        <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
-          className="h-9 flex-1 rounded-lg border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+      <AppSelect
+        value={projectId}
+        onChange={(v) => setProjectId(Number(v))}
+        options={[
+          { value: '', label: '— Project —' },
+          ...projects.map((p) => ({ value: p.id, label: p.name })),
+        ]}
+        placeholder="— Project —"
+        size="sm"
+        autoFocus
+      />
+      <div className="flex flex-col gap-2">
+        <TimePicker12 value={startTime} onChange={setStartTime} />
+        <TimePicker12 value={endTime} onChange={setEndTime} />
       </div>
       <div className="flex gap-2">
         <Button size="sm" loading={isSaving} onClick={handleSave}

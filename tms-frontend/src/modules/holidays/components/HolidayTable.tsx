@@ -125,11 +125,11 @@ export function HolidayTable({
                   dir={sortDir}
                   onSort={handleSort}
                 />
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">
                   Description
                 </th>
                 {canManage && (
-                  <th className="px-4 py-3 text-right font-medium text-muted-foreground">
+                  <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">
                     Actions
                   </th>
                 )}
@@ -186,7 +186,7 @@ function Th({
   const active = current === sortKey
   return (
     <th
-      className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
+      className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors whitespace-nowrap"
       onClick={() => onSort(sortKey)}
     >
       <span className="inline-flex items-center gap-1">
@@ -262,7 +262,7 @@ function HolidayRow({
           )}
         </div>
       </td>
-      <td className="px-4 py-3 text-muted-foreground tabular-nums">
+      <td className="px-4 py-3 text-muted-foreground tabular-nums whitespace-nowrap">
         {formattedDate}
       </td>
       <td className="px-4 py-3">
@@ -275,7 +275,7 @@ function HolidayRow({
           {config.label}
         </span>
       </td>
-      <td className="px-4 py-3 text-muted-foreground max-w-[250px] truncate">
+      <td className="px-4 py-3 text-muted-foreground">
         {holiday.description ?? '—'}
       </td>
       {canManage && (

@@ -1,4 +1,4 @@
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useState } from 'react'
@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import type { UserCreateRequest } from '../types/user.types'
 
@@ -58,10 +59,6 @@ interface UserCreateModalProps {
 // ── Shared field styles ───────────────────────────────────────
 const fieldClass = 'space-y-1.5'
 const errorClass = 'text-xs text-destructive mt-1'
-const selectClass =
-  'flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors disabled:opacity-50'
 
 // ── Component ─────────────────────────────────────────────────
 export function UserCreateModal({ open, onOpenChange, onSubmit, departments = [], users = [] }: UserCreateModalProps) {
@@ -70,6 +67,7 @@ export function UserCreateModal({ open, onOpenChange, onSubmit, departments = []
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -187,36 +185,53 @@ export function UserCreateModal({ open, onOpenChange, onSubmit, departments = []
             {/* Role */}
             <div className={fieldClass}>
               <Label htmlFor="roleName">Role *</Label>
-              <select
-                id="roleName"
-                className={cn(selectClass, errors.roleName && 'border-destructive')}
-                {...register('roleName')}
-              >
-                <option value="">Select role…</option>
-                <option value="ADMIN">Admin</option>
-                <option value="HR">HR</option>
-                <option value="HR_MANAGER">HR Manager</option>
-                <option value="MANAGER">Manager</option>
-                <option value="DIRECTOR">Director</option>
-                <option value="EMPLOYEE">Employee</option>
-              </select>
+              <Controller
+                name="roleName"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="roleName"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    error={!!errors.roleName}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: 'Select role…' },
+                      { value: 'ADMIN', label: 'Admin' },
+                      { value: 'HR', label: 'HR' },
+                      { value: 'HR_MANAGER', label: 'HR Manager' },
+                      { value: 'MANAGER', label: 'Manager' },
+                      { value: 'DIRECTOR', label: 'Director' },
+                      { value: 'EMPLOYEE', label: 'Employee' },
+                    ]}
+                  />
+                )}
+              />
               {errors.roleName && <p className={errorClass}>{errors.roleName.message}</p>}
             </div>
 
             {/* Employment Type */}
             <div className={fieldClass}>
               <Label htmlFor="employmentType">Employment Type</Label>
-              <select
-                id="employmentType"
-                className={selectClass}
-                {...register('employmentType')}
-              >
-                <option value="">Select type…</option>
-                <option value="FULL_TIME">Full Time</option>
-                <option value="PART_TIME">Part Time</option>
-                <option value="CONTRACT">Contract</option>
-                <option value="INTERN">Intern</option>
-              </select>
+              <Controller
+                name="employmentType"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="employmentType"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: 'Select type…' },
+                      { value: 'FULL_TIME', label: 'Full Time' },
+                      { value: 'PART_TIME', label: 'Part Time' },
+                      { value: 'CONTRACT', label: 'Contract' },
+                      { value: 'INTERN', label: 'Intern' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Designation */}
@@ -238,33 +253,43 @@ export function UserCreateModal({ open, onOpenChange, onSubmit, departments = []
             {/* Department */}
             <div className={fieldClass}>
               <Label htmlFor="departmentId">Department</Label>
-              <select
-                id="departmentId"
-                className={selectClass}
-                {...register('departmentId')}
-              >
-                <option value="">— Select department —</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+              <Controller
+                name="departmentId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="departmentId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    options={[
+                      { value: '', label: '— Select department —' },
+                      ...departments.map((d) => ({ value: d.id, label: d.name })),
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Reporting Manager */}
             <div className={fieldClass}>
               <Label htmlFor="managerId">Reporting Manager</Label>
-              <select
-                id="managerId"
-                className={selectClass}
-                {...register('managerId')}
-              >
-                <option value="">— Select manager —</option>
-                {users
-                  .filter((u) => u.roleName === 'MANAGER' || u.roleName === 'HR_MANAGER' || u.roleName === 'DIRECTOR' || u.roleName === 'ADMIN' || u.roleName === 'HR')
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.employeeId})</option>
-                  ))}
-              </select>
+              <Controller
+                name="managerId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="managerId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    options={[
+                      { value: '', label: '— Select manager —' },
+                      ...users
+                        .filter((u) => u.roleName === 'MANAGER' || u.roleName === 'HR_MANAGER' || u.roleName === 'DIRECTOR' || u.roleName === 'ADMIN' || u.roleName === 'HR')
+                        .map((u) => ({ value: u.id, label: `${u.name} (${u.employeeId})` })),
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Joining Date */}

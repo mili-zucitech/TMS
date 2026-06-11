@@ -1,10 +1,14 @@
 package com.company.tms.report.controller;
 
+import com.company.tms.report.dto.ApprovalTurnaroundReport;
 import com.company.tms.report.dto.BillableHoursReport;
 import com.company.tms.report.dto.EmployeeHoursReport;
 import com.company.tms.report.dto.KpiSummary;
 import com.company.tms.report.dto.LeaveReport;
+import com.company.tms.report.dto.OvertimeSummaryReport;
 import com.company.tms.report.dto.ProjectUtilizationReport;
+import com.company.tms.report.dto.TaskSummaryReport;
+import com.company.tms.report.dto.TimesheetComplianceReport;
 import com.company.tms.report.service.ReportService;
 import com.company.tms.util.ApiResponse;
 import lombok.RequiredArgsConstructor;
@@ -164,5 +168,75 @@ public class ReportController {
         KpiSummary summary = reportService.getKpiSummary(auth, startDate, endDate);
 
         return ResponseEntity.ok(ApiResponse.success(summary, "KPI summary retrieved"));
+    }
+
+    /**
+     * GET /api/v1/reports/overtime-summary
+     * Query params: startDate, endDate, departmentId
+     * Access: ADMIN, HR, HR_MANAGER, DIRECTOR, MANAGER (team-scoped).
+     */
+    @GetMapping("/overtime-summary")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'DIRECTOR', 'MANAGER')")
+    public ResponseEntity<ApiResponse<OvertimeSummaryReport>> getOvertimeSummary(
+            Authentication auth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long departmentId) {
+
+        log.debug("GET /api/v1/reports/overtime-summary start={} end={} dept={}", startDate, endDate, departmentId);
+        OvertimeSummaryReport report = reportService.getOvertimeSummary(auth, startDate, endDate, departmentId);
+        return ResponseEntity.ok(ApiResponse.success(report, "Overtime summary retrieved"));
+    }
+
+    /**
+     * GET /api/v1/reports/timesheet-compliance
+     * Query params: startDate, endDate, departmentId
+     * Access: ADMIN, HR, HR_MANAGER, DIRECTOR, MANAGER (team-scoped).
+     */
+    @GetMapping("/timesheet-compliance")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'DIRECTOR', 'MANAGER')")
+    public ResponseEntity<ApiResponse<TimesheetComplianceReport>> getTimesheetCompliance(
+            Authentication auth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long departmentId) {
+
+        log.debug("GET /api/v1/reports/timesheet-compliance start={} end={} dept={}", startDate, endDate, departmentId);
+        TimesheetComplianceReport report = reportService.getTimesheetCompliance(auth, startDate, endDate, departmentId);
+        return ResponseEntity.ok(ApiResponse.success(report, "Timesheet compliance report retrieved"));
+    }
+
+    /**
+     * GET /api/v1/reports/task-summary
+     * Query params: startDate, endDate, projectId
+     * Access: ADMIN, HR_MANAGER, DIRECTOR, MANAGER.
+     */
+    @GetMapping("/task-summary")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR', 'MANAGER')")
+    public ResponseEntity<ApiResponse<TaskSummaryReport>> getTaskSummary(
+            Authentication auth,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Long projectId) {
+
+        log.debug("GET /api/v1/reports/task-summary start={} end={} project={}", startDate, endDate, projectId);
+        TaskSummaryReport report = reportService.getTaskSummary(auth, startDate, endDate, projectId);
+        return ResponseEntity.ok(ApiResponse.success(report, "Task summary report retrieved"));
+    }
+
+    /**
+     * GET /api/v1/reports/approval-turnaround
+     * Query params: startDate, endDate
+     * Access: ADMIN, DIRECTOR only.
+     */
+    @GetMapping("/approval-turnaround")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR')")
+    public ResponseEntity<ApiResponse<ApprovalTurnaroundReport>> getApprovalTurnaround(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+
+        log.debug("GET /api/v1/reports/approval-turnaround start={} end={}", startDate, endDate);
+        ApprovalTurnaroundReport report = reportService.getApprovalTurnaround(startDate, endDate);
+        return ResponseEntity.ok(ApiResponse.success(report, "Approval turnaround report retrieved"));
     }
 }

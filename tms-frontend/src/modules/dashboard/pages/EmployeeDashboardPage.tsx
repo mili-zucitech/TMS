@@ -10,6 +10,8 @@ import {
   ChevronRight,
   CalendarCheck,
   Inbox,
+  Zap,
+  TrendingUp,
 } from 'lucide-react'
 import {
   BarChart,
@@ -139,6 +141,8 @@ export function EmployeeDashboardPage() {
   } = useEmployeeDashboard(userId)
 
   const totalHours = weekSummary ? weekSummary.totalMinutes / 60 : 0
+  const overtimeHours = Math.max(0, totalHours - WEEKLY_HOURS_TARGET)
+  const hasOvertime = overtimeHours > 0
   const remainingHours = Math.max(0, WEEKLY_HOURS_TARGET - totalHours)
   const statusConfig = weekSummary ? STATUS_CONFIG[weekSummary.displayStatus] : null
 
@@ -172,9 +176,15 @@ export function EmployeeDashboardPage() {
         <StatCard
           title="Hours This Week"
           value={minutesToHours(weekSummary?.totalMinutes ?? 0)}
-          subtitle={`${remainingHours.toFixed(1)}h remaining`}
-          icon={Clock}
-          iconColor="text-blue-600 dark:text-blue-400 bg-blue-500/10"
+          subtitle={hasOvertime
+            ? `+${overtimeHours.toFixed(1)}h overtime`
+            : `${remainingHours.toFixed(1)}h remaining`}
+          icon={hasOvertime ? Zap : Clock}
+          iconColor={hasOvertime
+            ? 'text-amber-600 dark:text-amber-400 bg-amber-500/10'
+            : totalHours >= WEEKLY_HOURS_TARGET
+              ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10'
+              : 'text-blue-600 dark:text-blue-400 bg-blue-500/10'}
           isLoading={isLoading}
         />
         <StatCard
@@ -225,7 +235,15 @@ export function EmployeeDashboardPage() {
             {/* Status + hours */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-3xl font-bold tracking-tight">{minutesToHours(weekSummary?.totalMinutes ?? 0)}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-3xl font-bold tracking-tight">{minutesToHours(weekSummary?.totalMinutes ?? 0)}</p>
+                  {hasOvertime && (
+                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/15 border border-amber-400/30 px-2 py-0.5 rounded-full">
+                      <Zap className="h-3 w-3" />
+                      +{overtimeHours.toFixed(1)}h OT
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-0.5">of {WEEKLY_HOURS_TARGET}h target</p>
               </div>
               {statusConfig && (
@@ -236,17 +254,43 @@ export function EmployeeDashboardPage() {
             </div>
             {/* Progress bar */}
             <div className="space-y-1.5">
+              {/* Regular hours bar */}
               <ProgressBar
-                value={totalHours}
+                value={Math.min(totalHours, WEEKLY_HOURS_TARGET)}
                 max={WEEKLY_HOURS_TARGET}
-                color={totalHours >= WEEKLY_HOURS_TARGET ? 'bg-emerald-500' : 'bg-primary'}
+                color={hasOvertime ? 'bg-emerald-500' : totalHours >= WEEKLY_HOURS_TARGET ? 'bg-emerald-500' : 'bg-primary'}
               />
-              <p className="text-xs text-muted-foreground">
-                {Math.min(100, Math.round((totalHours / WEEKLY_HOURS_TARGET) * 100))}% completed
+              {/* Overtime bar */}
+              {hasOvertime && (
+                <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-amber-500 transition-all"
+                    style={{ width: `${Math.min((overtimeHours / WEEKLY_HOURS_TARGET) * 100, 100)}%` }}
+                  />
+                </div>
+              )}
+              <p className={cn('text-xs', hasOvertime ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-muted-foreground')}>
+                {hasOvertime
+                  ? `${Math.round((totalHours / WEEKLY_HOURS_TARGET) * 100)}% of target (⚡ ${overtimeHours.toFixed(1)}h over)`
+                  : `${Math.min(100, Math.round((totalHours / WEEKLY_HOURS_TARGET) * 100))}% completed`}
               </p>
             </div>
+            {/* Overtime notice */}
+            {hasOvertime && (
+              <div className="flex items-center gap-2.5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
+                <TrendingUp className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                    Overtime: {overtimeHours.toFixed(1)}h over the {WEEKLY_HOURS_TARGET}h target
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400/80">
+                    Add an overtime reason when submitting your timesheet
+                  </p>
+                </div>
+              </div>
+            )}
             {/* Pending actions */}
-            {weekSummary?.displayStatus === 'NOT_SUBMITTED' || weekSummary?.displayStatus === 'DRAFT' ? (
+            {(weekSummary?.displayStatus === 'NOT_SUBMITTED' || weekSummary?.displayStatus === 'DRAFT') ? (
               <div className="flex items-center gap-2.5 rounded-xl border border-amber-400/30 bg-amber-500/10 p-3">
                 <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                 <div>

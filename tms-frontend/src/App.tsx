@@ -1,7 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
-import ProtectedRoute from '@/routes/ProtectedRoute'
+import ProtectedRoute, { RoleProtectedRoute } from '@/routes/ProtectedRoute'
 import { AppLayout } from '@/layouts/AppLayout'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
@@ -16,6 +16,7 @@ const OrganizationChartPage      = lazy(() => import('@/modules/organization/pag
 const DepartmentListPage         = lazy(() => import('@/modules/departments/pages/DepartmentListPage'))
 const ProjectListPage            = lazy(() => import('@/modules/projects/pages/ProjectListPage'))
 const ProjectDetailsPage         = lazy(() => import('@/modules/projects/pages/ProjectDetailsPage'))
+const ProjectUtilizationPage     = lazy(() => import('@/modules/projects/pages/ProjectUtilizationPage'))
 const TaskListPage               = lazy(() => import('@/modules/tasks/pages/TaskListPage'))
 const TaskDetailsPage            = lazy(() => import('@/modules/tasks/pages/TaskDetailsPage'))
 const TimesheetDashboardPage     = lazy(() => import('@/modules/timesheets/pages/TimesheetDashboardPage'))
@@ -56,27 +57,41 @@ export default function App() {
                 <ErrorBoundary>
                   <Suspense fallback={<PageSpinner />}>
                     <Routes>
-                      <Route path="/dashboard"                     element={<DashboardPage />} />
-                      <Route path="/my-team"                       element={<MyTeamPage />} />
-                      <Route path="/users"                         element={<UserListPage />} />
-                      <Route path="/organization"                  element={<OrganizationChartPage />} />
-                      <Route path="/departments"                   element={<DepartmentListPage />} />
-                      <Route path="/projects"                      element={<ProjectListPage />} />
-                      <Route path="/projects/:id"                  element={<ProjectDetailsPage />} />
-                      <Route path="/tasks"                         element={<TaskListPage />} />
-                      <Route path="/tasks/:id"                     element={<TaskDetailsPage />} />
-                      <Route path="/timesheets"                    element={<TimesheetDashboardPage />} />
-                      <Route path="/timesheets/history"            element={<TimesheetHistoryPage />} />
-                      <Route path="/timesheets/manager"            element={<ManagerTimesheetDashboardPage />} />
-                      <Route path="/timesheets/manager/review/:id" element={<ManagerTimesheetReviewPage />} />
-                      <Route path="/timesheets/reminders"          element={<ManagerTimesheetReminderPage />} />
-                      <Route path="/timesheets/:id"                element={<TimesheetEntryPage />} />
-                      <Route path="/leave"                         element={<LeaveDashboardPage />} />
-                      <Route path="/leave/approvals"               element={<ManagerLeaveApprovalPage />} />
-                      <Route path="/holidays"                      element={<HolidayPage />} />
-                      <Route path="/notifications"                 element={<NotificationsPage />} />
-                      <Route path="/reports"                       element={<ReportsPage />} />
-                      <Route path="/settings"                      element={<SettingsPage />} />
+                      {/* ── Routes accessible to all authenticated users ── */}
+                      <Route path="/dashboard"       element={<DashboardPage />} />
+                      <Route path="/timesheets"      element={<TimesheetDashboardPage />} />
+                      <Route path="/timesheets/history" element={<TimesheetHistoryPage />} />
+                      <Route path="/timesheets/:id"  element={<TimesheetEntryPage />} />
+                      <Route path="/leave"           element={<LeaveDashboardPage />} />
+                      <Route path="/holidays"        element={<HolidayPage />} />
+                      <Route path="/notifications"   element={<NotificationsPage />} />
+                      <Route path="/settings"        element={<SettingsPage />} />
+                      <Route path="/my-team"         element={<MyTeamPage />} />
+                      <Route path="/organization"    element={<OrganizationChartPage />} />
+                      <Route path="/projects"        element={<ProjectListPage />} />
+                      <Route path="/projects/:id"    element={<ProjectDetailsPage />} />
+                      <Route path="/tasks"           element={<TaskListPage />} />
+                      <Route path="/tasks/:id"       element={<TaskDetailsPage />} />
+
+                      {/* ── Manager / elevated role routes ── */}
+                      <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'HR', 'HR_MANAGER', 'DIRECTOR']} />}>
+                        <Route path="/timesheets/manager"            element={<ManagerTimesheetDashboardPage />} />
+                        <Route path="/timesheets/manager/review/:id" element={<ManagerTimesheetReviewPage />} />
+                        <Route path="/leave/approvals"               element={<ManagerLeaveApprovalPage />} />
+                        <Route path="/reports"                       element={<ReportsPage />} />
+                        <Route path="/projects/:id/utilization"      element={<ProjectUtilizationPage />} />
+                        <Route path="/departments"                   element={<DepartmentListPage />} />
+                      </Route>
+
+                      {/* ── Manager / Admin reminder route ── */}
+                      <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER', 'HR', 'HR_MANAGER', 'DIRECTOR']} />}>
+                        <Route path="/timesheets/reminders" element={<ManagerTimesheetReminderPage />} />
+                      </Route>
+
+                      {/* ── Admin / HR user-management route ── */}
+                      <Route element={<RoleProtectedRoute allowedRoles={['ADMIN', 'HR', 'HR_MANAGER']} />}>
+                        <Route path="/users" element={<UserListPage />} />
+                      </Route>
                     </Routes>
                   </Suspense>
                 </ErrorBoundary>

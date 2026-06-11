@@ -14,12 +14,17 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -77,24 +82,26 @@ class AuditServiceTest {
         @Test
         @DisplayName("returns mapped list of all audit logs")
         void getAllLogs_ReturnsMappedList() {
-            when(auditRepository.findAll()).thenReturn(List.of(sampleLog));
+            Pageable pageable = PageRequest.of(0, 100);
+            when(auditRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(sampleLog)));
             when(auditMapper.toAuditLogResponse(sampleLog)).thenReturn(sampleResponse);
 
-            List<AuditLogResponse> result = auditService.getAllLogs();
+            Page<AuditLogResponse> result = auditService.getAllLogs(pageable);
 
-            assertThat(result).hasSize(1);
-            assertThat(result.get(0).getAction()).isEqualTo(AuditAction.LOGIN);
-            verify(auditRepository).findAll();
+            assertThat(result.getContent()).hasSize(1);
+            assertThat(result.getContent().get(0).getAction()).isEqualTo(AuditAction.LOGIN);
+            verify(auditRepository).findAll(pageable);
         }
 
         @Test
         @DisplayName("returns empty list when no logs exist")
         void getAllLogs_Empty_ReturnsEmptyList() {
-            when(auditRepository.findAll()).thenReturn(List.of());
+            Pageable pageable = PageRequest.of(0, 100);
+            when(auditRepository.findAll(pageable)).thenReturn(new PageImpl<>(List.of()));
 
-            List<AuditLogResponse> result = auditService.getAllLogs();
+            Page<AuditLogResponse> result = auditService.getAllLogs(pageable);
 
-            assertThat(result).isEmpty();
+            assertThat(result.getContent()).isEmpty();
         }
     }
 

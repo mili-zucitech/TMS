@@ -1,0 +1,443 @@
+﻿=== FILE: application.yml ===
+spring:
+  application:
+    name: tms-backend
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    out-of-order: true
+    repair-on-migrate: true
+
+  # Mail Configuration
+  # MAIL_USERNAME and MAIL_PASSWORD are REQUIRED â€” the app will refuse to start if either is missing or empty.
+  # For Gmail: MAIL_PASSWORD must be a 16-character App Password (Google Account â†’ Security â†’ App Passwords).
+  # NEVER hardcode credentials here; always supply them via environment variables or a secrets manager.
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.gmail.com}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME}           # Required â€” no default; do not add a fallback
+    password: ${SPRING_MAIL_PASSWORD}           # Required â€” no default; App Password for Gmail
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+            required: true
+          # Connection / read / write timeouts (ms) â€” prevents silent hangs when SMTP is unreachable
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+server:
+  port: ${PORT:8080}
+
+# JWT Configuration
+# WARNING: Replace jwt.secret with a securely generated Base64-encoded key before deploying to production.
+# Generate with: openssl rand -base64 64
+jwt:
+  secret: ${JWT_SECRET:dG1zLWp3dC1zZWNyZXQta2V5LXZlcnktc2VjdXJlLW1pbi0zMi1jaGFycw==}
+  expiration: 86400000  # 24 hours in milliseconds
+
+# CORS Configuration
+# cors.allowed-origins is populated from the FRONTEND_URL environment variable.
+# Falls back to http://localhost:5173 when FRONTEND_URL is not set (local dev).
+# Do NOT use a wildcard "*" here â€” allowCredentials=true requires explicit origins.
+# For multiple origins add additional list items using separate env vars, e.g.:
+#   - ${STAGING_URL:https://staging.example.com}
+cors:
+  allowed-origins:
+    - ${FRONTEND_URL:http://localhost:5173}
+
+# Async thread pool
+async:
+  core-pool-size: 5
+  max-pool-size: 20
+  queue-capacity: 500
+
+logging:
+  level:
+    com.company.tms: INFO
+    org.springframework.security: WARN
+    # ---- Mail debugging â€” reveals SMTP handshake details without exposing passwords ----
+    org.springframework.mail: DEBUG
+    com.sun.mail: DEBUG
+
+
+
+=== FILE: db\migration\.gitkeep ===
+# Flyway migration scripts go here.
+# Example: V1__init_schema.sql
+
+
+=== FILE: db\migration\V0__Create_schema.sql ===
+-- V0: Create all application tables (MySQL-compatible).
+-- Uses CREATE TABLE IF NOT EXISTS so re-runs are safe.
+-- MUST execute before any seed migrations (V1, V2, V3 ...).
+--
+-- NOTE: If you are bringing an *existing* database under Flyway for the first
+-- time, set flyway.baseline-version=0 so this migration is not skipped.
+-- For a brand-new production database the default behaviour is correct.
+
+-- â”€â”€ Independent tables (no FK dependencies) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+CREATE TABLE IF NOT EXISTS departments (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    name        VARCHAR(255) NOT NULL,
+    description VARCHAR(255),
+    head_id     CHAR(36),
+    status      VARCHAR(50)  NOT NULL DEFAULT 'ACTIVE',
+    created_at  DATETIME,
+    updated_at  DATETIME,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS roles (
+    id   BIGINT      NOT NULL AUTO_INCREMENT,
+    name VARCHAR(20) NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_roles_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS leave_types (
+    id                        BIGINT       NOT NULL AUTO_INCREMENT,
+    name                      VARCHAR(100) NOT NULL,
+    description               VARCHAR(500),
+    default_annual_allocation INT          NOT NULL,
+    requires_approval         TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at                DATETIME     NOT NULL,
+    updated_at                DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_leave_types_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS holidays (
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    name         VARCHAR(150) NOT NULL,
+    description  VARCHAR(500),
+    holiday_date DATE         NOT NULL,
+    type         VARCHAR(50)  NOT NULL DEFAULT 'NATIONAL',
+    is_optional  TINYINT(1)   NOT NULL DEFAULT 0,
+    created_at   DATETIME     NOT NULL,
+    updated_at   DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_holidays_date (holiday_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS email_notifications (
+    id              BIGINT       NOT NULL AUTO_INCREMENT,
+    recipient_email VARCHAR(255) NOT NULL,
+    subject         VARCHAR(300) NOT NULL,
+    body            TEXT         NOT NULL,
+    status          VARCHAR(20)  NOT NULL DEFAULT 'PENDING',
+    sent_at         DATETIME,
+    created_at      DATETIME     NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id          BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id     CHAR(36),
+    action      VARCHAR(50)  NOT NULL,
+    entity_type VARCHAR(100),
+    entity_id   VARCHAR(255),
+    description VARCHAR(500),
+    old_value   TEXT,
+    new_value   TEXT,
+    ip_address  VARCHAR(50),
+    created_at  DATETIME     NOT NULL,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- â”€â”€ Tables with FK â†’ departments / roles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+CREATE TABLE IF NOT EXISTS users (
+    id              CHAR(36)     NOT NULL,
+    employee_id     VARCHAR(255) NOT NULL,
+    name            VARCHAR(255) NOT NULL,
+    email           VARCHAR(255) NOT NULL,
+    password_hash   VARCHAR(255) NOT NULL,
+    phone           VARCHAR(255),
+    department_id   BIGINT,
+    manager_id      CHAR(36),
+    role_id         BIGINT       NOT NULL,
+    designation     VARCHAR(255),
+    employment_type VARCHAR(50),
+    joining_date    DATE,
+    status          VARCHAR(50)  NOT NULL DEFAULT 'ACTIVE',
+    created_at      DATETIME,
+    updated_at      DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_users_employee_id (employee_id),
+    UNIQUE KEY uk_users_email (email),
+    CONSTRAINT fk_users_role       FOREIGN KEY (role_id)       REFERENCES roles(id),
+    CONSTRAINT fk_users_department FOREIGN KEY (department_id) REFERENCES departments(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- â”€â”€ Tables with FK â†’ users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+CREATE TABLE IF NOT EXISTS leave_balances (
+    id               BIGINT   NOT NULL AUTO_INCREMENT,
+    user_id          CHAR(36) NOT NULL,
+    leave_type_id    BIGINT   NOT NULL,
+    year             INT      NOT NULL,
+    total_allocated  INT      NOT NULL,
+    used_leaves      INT      NOT NULL DEFAULT 0,
+    remaining_leaves INT      NOT NULL,
+    created_at       DATETIME NOT NULL,
+    updated_at       DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_leave_balances_user_type_year (user_id, leave_type_id, year),
+    CONSTRAINT fk_leave_balances_user       FOREIGN KEY (user_id)       REFERENCES users(id),
+    CONSTRAINT fk_leave_balances_leave_type FOREIGN KEY (leave_type_id) REFERENCES leave_types(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id               BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id          CHAR(36)      NOT NULL,
+    leave_type_id    BIGINT        NOT NULL,
+    start_date       DATE          NOT NULL,
+    end_date         DATE          NOT NULL,
+    total_days       INT           NOT NULL,
+    reason           VARCHAR(1000),
+    status           VARCHAR(50)   NOT NULL DEFAULT 'PENDING',
+    applied_at       DATETIME      NOT NULL,
+    approved_at      DATETIME,
+    approved_by      CHAR(36),
+    rejection_reason VARCHAR(500),
+    PRIMARY KEY (id),
+    CONSTRAINT fk_leave_requests_user       FOREIGN KEY (user_id)       REFERENCES users(id),
+    CONSTRAINT fk_leave_requests_leave_type FOREIGN KEY (leave_type_id) REFERENCES leave_types(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id             BIGINT        NOT NULL AUTO_INCREMENT,
+    user_id        CHAR(36)      NOT NULL,
+    title          VARCHAR(200)  NOT NULL,
+    message        VARCHAR(1000) NOT NULL,
+    type           VARCHAR(50)   NOT NULL,
+    is_read        TINYINT(1)    NOT NULL DEFAULT 0,
+    reference_id   VARCHAR(255),
+    reference_type VARCHAR(100),
+    created_at     DATETIME      NOT NULL,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- â”€â”€ Tables with FK â†’ departments (projects) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+CREATE TABLE IF NOT EXISTS projects (
+    id                 BIGINT        NOT NULL AUTO_INCREMENT,
+    project_code       VARCHAR(30)   NOT NULL,
+    name               VARCHAR(150)  NOT NULL,
+    description        VARCHAR(1000),
+    client_name        VARCHAR(150),
+    department_id      BIGINT,
+    project_manager_id CHAR(36),
+    start_date         DATE,
+    end_date           DATE,
+    status             VARCHAR(50)   NOT NULL DEFAULT 'PLANNED',
+    created_at         DATETIME,
+    updated_at         DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_projects_project_code (project_code),
+    CONSTRAINT fk_projects_department FOREIGN KEY (department_id) REFERENCES departments(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- â”€â”€ Tables with FK â†’ projects / users â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+CREATE TABLE IF NOT EXISTS project_assignments (
+    id                    BIGINT       NOT NULL AUTO_INCREMENT,
+    project_id            BIGINT       NOT NULL,
+    user_id               CHAR(36)     NOT NULL,
+    role                  VARCHAR(50),
+    allocation_percentage DECIMAL(5,2),
+    start_date            DATE,
+    end_date              DATE,
+    created_at            DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_project_assignment_user_project (project_id, user_id),
+    CONSTRAINT fk_project_assignments_project FOREIGN KEY (project_id) REFERENCES projects(id),
+    CONSTRAINT fk_project_assignments_user    FOREIGN KEY (user_id)    REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS tasks (
+    id                 BIGINT        NOT NULL AUTO_INCREMENT,
+    task_code          VARCHAR(30)   NOT NULL,
+    title              VARCHAR(200)  NOT NULL,
+    description        VARCHAR(2000),
+    project_id         BIGINT        NOT NULL,
+    assigned_user_id   CHAR(36),
+    created_by_user_id CHAR(36),
+    priority           VARCHAR(50)   NOT NULL DEFAULT 'MEDIUM',
+    status             VARCHAR(50)   NOT NULL DEFAULT 'TODO',
+    estimated_hours    DECIMAL(6,2),
+    start_date         DATE,
+    due_date           DATE,
+    created_at         DATETIME,
+    updated_at         DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_tasks_task_code (task_code),
+    CONSTRAINT fk_tasks_project FOREIGN KEY (project_id) REFERENCES projects(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS timesheets (
+    id               BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id          CHAR(36)     NOT NULL,
+    week_start_date  DATE         NOT NULL,
+    week_end_date    DATE         NOT NULL,
+    status           VARCHAR(50)  NOT NULL DEFAULT 'DRAFT',
+    submitted_at     DATETIME,
+    approved_at      DATETIME,
+    approved_by      CHAR(36),
+    rejection_reason VARCHAR(1000),
+    created_at       DATETIME     NOT NULL,
+    updated_at       DATETIME,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_timesheets_user_week (user_id, week_start_date),
+    CONSTRAINT fk_timesheets_user FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- â”€â”€ Tables with FK â†’ tasks / timesheets / projects â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+CREATE TABLE IF NOT EXISTS task_comments (
+    id         BIGINT        NOT NULL AUTO_INCREMENT,
+    task_id    BIGINT        NOT NULL,
+    user_id    CHAR(36)      NOT NULL,
+    comment    VARCHAR(2000) NOT NULL,
+    created_at DATETIME,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_task_comments_task FOREIGN KEY (task_id) REFERENCES tasks(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS time_entries (
+    id               BIGINT        NOT NULL AUTO_INCREMENT,
+    timesheet_id     BIGINT        NOT NULL,
+    project_id       BIGINT        NOT NULL,
+    task_id          BIGINT,
+    task_note        VARCHAR(255),
+    user_id          CHAR(36)      NOT NULL,
+    work_date        DATE          NOT NULL,
+    start_time       TIME          NOT NULL,
+    end_time         TIME          NOT NULL,
+    duration_minutes INT           NOT NULL,
+    description      VARCHAR(1000),
+    created_at       DATETIME      NOT NULL,
+    updated_at       DATETIME,
+    PRIMARY KEY (id),
+    CONSTRAINT fk_time_entries_timesheet FOREIGN KEY (timesheet_id) REFERENCES timesheets(id),
+    CONSTRAINT fk_time_entries_project   FOREIGN KEY (project_id)   REFERENCES projects(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+=== FILE: db\migration\V1__Seed_departments.sql ===
+-- Seed initial departments
+INSERT INTO departments (name, description, status, created_at, updated_at)
+VALUES
+  ('Engineering',         'Software development, architecture and DevOps',        'ACTIVE', NOW(), NOW()),
+  ('Product Management',  'Product strategy, roadmaps and feature prioritisation', 'ACTIVE', NOW(), NOW()),
+  ('Design',              'UX/UI design and brand assets',                         'ACTIVE', NOW(), NOW()),
+  ('Quality Assurance',   'Testing, QA automation and release validation',         'ACTIVE', NOW(), NOW()),
+  ('Human Resources',     'Recruitment, onboarding and employee relations',        'ACTIVE', NOW(), NOW()),
+  ('Finance',             'Budgeting, payroll and financial reporting',            'ACTIVE', NOW(), NOW()),
+  ('Sales',               'Business development and client acquisition',           'ACTIVE', NOW(), NOW()),
+  ('Marketing',           'Brand, content and go-to-market activities',           'ACTIVE', NOW(), NOW()),
+  ('Operations',          'Internal processes, facilities and administration',     'ACTIVE', NOW(), NOW()),
+  ('Customer Support',    'Client onboarding, helpdesk and account management',   'ACTIVE', NOW(), NOW());
+
+
+=== FILE: db\migration\V2__Seed_roles.sql ===
+-- V2: Seed all application roles.
+-- INSERT IGNORE silently skips rows that violate the UNIQUE(name) constraint,
+-- making this migration safe to re-run against an existing database.
+
+INSERT IGNORE INTO roles (name)
+VALUES
+    ('ADMIN'),
+    ('HR'),
+    ('HR_MANAGER'),
+    ('MANAGER'),
+    ('DIRECTOR'),
+    ('EMPLOYEE');
+
+
+=== FILE: db\migration\V3__Seed_leave_types_and_balances.sql ===
+-- V3: Seed standard leave types and initialise current-year leave balances
+--     for all ACTIVE users.  MySQL-compatible.
+
+-- 1. Seed leave types
+--    INSERT IGNORE silently skips rows that violate the UNIQUE(name) constraint.
+INSERT IGNORE INTO leave_types
+    (name, description, default_annual_allocation, requires_approval, created_at, updated_at)
+VALUES
+    ('Annual Leave',    'Standard paid annual leave entitlement',        20, TRUE,  NOW(), NOW()),
+    ('Sick Leave',      'Paid leave for illness or medical appointments', 10, FALSE, NOW(), NOW()),
+    ('Casual Leave',    'Short-notice personal or family leave',          8, TRUE,  NOW(), NOW()),
+    ('Maternity Leave', 'Paid leave for expectant and new mothers',       90, TRUE,  NOW(), NOW()),
+    ('Paternity Leave', 'Paid leave for new fathers and co-parents',      10, TRUE,  NOW(), NOW()),
+    ('Unpaid Leave',    'Leave beyond standard entitlement without pay',  30, TRUE,  NOW(), NOW());
+
+-- 2. Initialise leave balances for every ACTIVE user x every leave type
+--    for the current calendar year.
+--    INSERT IGNORE skips rows that violate the UNIQUE(user_id, leave_type_id, year) constraint.
+INSERT IGNORE INTO leave_balances
+    (user_id, leave_type_id, year, total_allocated, used_leaves, remaining_leaves, created_at, updated_at)
+SELECT
+    u.id,
+    lt.id,
+    YEAR(NOW()),
+    lt.default_annual_allocation,
+    0,
+    lt.default_annual_allocation,
+    NOW(),
+    NOW()
+FROM users u
+CROSS JOIN leave_types lt
+WHERE u.status = 'ACTIVE';
+
+
+=== FILE: db\migration\V4__add_performance_indexes.sql ===
+-- Performance indexes to avoid full-table scans on common query patterns.
+
+-- timesheets: most frequent access by user_id
+CREATE INDEX idx_timesheets_user_id      ON timesheets(user_id);
+
+-- time_entries: lookups by parent timesheet and by project
+CREATE INDEX idx_time_entries_timesheet  ON time_entries(timesheet_id);
+CREATE INDEX idx_time_entries_project    ON time_entries(project_id);
+CREATE INDEX idx_time_entries_user       ON time_entries(user_id);
+
+-- leave_requests: filtering by user and status
+CREATE INDEX idx_leave_requests_user     ON leave_requests(user_id);
+CREATE INDEX idx_leave_requests_status   ON leave_requests(status);
+
+-- users: frequent lookups by manager and department
+CREATE INDEX idx_users_manager_id        ON users(manager_id);
+CREATE INDEX idx_users_department_id     ON users(department_id);
+
+
+

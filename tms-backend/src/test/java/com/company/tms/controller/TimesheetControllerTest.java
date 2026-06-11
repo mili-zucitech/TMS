@@ -25,6 +25,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.*;
@@ -167,7 +168,7 @@ class TimesheetControllerTest {
         @WithMockUser
         @DisplayName("submit transitions timesheet to SUBMITTED")
         void submitTimesheet_Success_Returns200() throws Exception {
-            when(timesheetService.submitTimesheet(1L)).thenReturn(submittedResponse);
+            when(timesheetService.submitTimesheet(eq(1L), any(com.company.tms.timesheet.dto.TimesheetSubmitRequest.class))).thenReturn(submittedResponse);
 
             mockMvc.perform(post("/api/v1/timesheets/{id}/submit", 1L))
                     .andExpect(status().isOk())
@@ -179,7 +180,7 @@ class TimesheetControllerTest {
         @WithMockUser
         @DisplayName("submitting already-approved timesheet returns 422")
         void submitTimesheet_InvalidState_Returns422() throws Exception {
-            when(timesheetService.submitTimesheet(3L))
+            when(timesheetService.submitTimesheet(eq(3L), any(com.company.tms.timesheet.dto.TimesheetSubmitRequest.class)))
                     .thenThrow(new InvalidTimesheetStateException("Cannot submit APPROVED timesheet"));
 
             mockMvc.perform(post("/api/v1/timesheets/{id}/submit", 3L))
@@ -214,6 +215,88 @@ class TimesheetControllerTest {
             mockMvc.perform(post("/api/v1/timesheets/{id}/lock", 3L))
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.errorCode").value("ACCESS_DENIED"));
+        }
+    }
+
+    @Nested
+    @DisplayName("GetTimesheetsByUser with filters")
+    class GetTimesheetsByUserFiltered {
+
+        @Test
+        @WithMockUser(roles = {"ADMIN"})
+        @DisplayName("no filter params delegates to getTimesheetsByUser")
+        void noParams_CallsGetTimesheetsByUser() throws Exception {
+            when(timesheetService.getTimesheetsByUser(userId))
+                    .thenReturn(List.of(draftResponse));
+
+            mockMvc.perform(get("/api/v1/timesheets/user/{userId}", userId))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data[0].status").value("DRAFT"));
+
+            verify(timesheetService).getTimesheetsByUser(userId);
+            verify(timesheetService, never()).getTimesheetsByUserFiltered(any(), any(), any(), any());
+        }
+
+        @Test
+        @WithMockUser(roles = {"ADMIN"})
+        @DisplayName("year param delegates to getTimesheetsByUserFiltered")
+        void yearParam_CallsFilteredMethod() throws Exception {
+            when(timesheetService.getTimesheetsByUserFiltered(userId, 2026, null, null))
+                    .thenReturn(List.of(draftResponse));
+
+            mockMvc.perform(get("/api/v1/timesheets/user/{userId}", userId)
+                            .param("year", "2026"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].status").value("DRAFT"));
+
+            verify(timesheetService).getTimesheetsByUserFiltered(userId, 2026, null, null);
+        }
+
+        @Test
+        @WithMockUser(roles = {"ADMIN"})
+        @DisplayName("year+month params delegate to getTimesheetsByUserFiltered")
+        void yearAndMonthParams_CallsFilteredMethod() throws Exception {
+            when(timesheetService.getTimesheetsByUserFiltered(userId, 2026, 3, null))
+                    .thenReturn(List.of(draftResponse));
+
+            mockMvc.perform(get("/api/v1/timesheets/user/{userId}", userId)
+                            .param("year", "2026")
+                            .param("month", "3"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isArray());
+
+            verify(timesheetService).getTimesheetsByUserFiltered(userId, 2026, 3, null);
+        }
+
+        @Test
+        @WithMockUser(roles = {"ADMIN"})
+        @DisplayName("year+month+week params all delegate to getTimesheetsByUserFiltered")
+        void allParams_CallsFilteredMethod() throws Exception {
+            when(timesheetService.getTimesheetsByUserFiltered(userId, 2026, 3, 13))
+                    .thenReturn(List.of(draftResponse));
+
+            mockMvc.perform(get("/api/v1/timesheets/user/{userId}", userId)
+                            .param("year", "2026")
+                            .param("month", "3")
+                            .param("week", "13"))
+                    .andExpect(status().isOk());
+
+            verify(timesheetService).getTimesheetsByUserFiltered(userId, 2026, 3, 13);
+        }
+
+        @Test
+        @WithMockUser(roles = {"ADMIN"})
+        @DisplayName("no matching timesheets returns empty list with 200")
+        void noMatchingTimesheets_ReturnsEmptyList() throws Exception {
+            when(timesheetService.getTimesheetsByUserFiltered(userId, 2020, 1, null))
+                    .thenReturn(List.of());
+
+            mockMvc.perform(get("/api/v1/timesheets/user/{userId}", userId)
+                            .param("year", "2020")
+                            .param("month", "1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isEmpty());
         }
     }
 }

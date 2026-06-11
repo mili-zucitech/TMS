@@ -109,6 +109,21 @@ export function stripSeconds(time: string): string {
 }
 
 /**
+ * Convert a 24-hour "HH:mm" or "HH:mm:ss" string to 12-hour display format.
+ * e.g. "09:30" → "9:30 AM",  "14:15" → "2:15 PM"
+ */
+export function format12h(time: string): string {
+  if (!time) return ''
+  const hhmm = time.substring(0, 5)
+  const [hStr, mStr] = hhmm.split(':')
+  const h24 = parseInt(hStr, 10)
+  if (isNaN(h24)) return hhmm
+  const period = h24 < 12 ? 'AM' : 'PM'
+  const h12    = h24 % 12 === 0 ? 12 : h24 % 12
+  return `${h12}:${mStr} ${period}`
+}
+
+/**
  * Check if two time ranges on the same day overlap.
  * [start1, end1) overlaps [start2, end2) iff start1 < end2 && end1 > start2
  */
@@ -123,6 +138,42 @@ export function timesOverlap(
   const s2 = timeToMinutes(start2)
   const e2 = timeToMinutes(end2)
   return s1 < e2 && e1 > s2
+}
+
+/**
+ * Split a day's entries into regular (≤ 8h) and overtime (> 8h) buckets.
+ * Entries are sorted by startTime first; the entry that first causes the
+ * cumulative total to EXCEED the threshold begins the overtime section —
+ * it is NOT split mid-entry.
+ *
+ * Edge cases handled:
+ *  - Single entry > 8h        → entirely in overtime
+ *  - Single entry exactly 8h  → regular (8h is not overtime)
+ *  - Multiple entries > 8h    → the entry that pushes past 8h is overtime
+ *  - Empty array              → { regular: [], overtime: [] }
+ */
+export function splitOvertimeEntries<T extends { startTime: string; endTime: string; durationMinutes: number | null }>(
+  entries: T[],
+  thresholdMinutes = 480,
+): { regular: T[]; overtime: T[] } {
+  const sorted = [...entries].sort((a, b) =>
+    timeToMinutes(a.startTime) - timeToMinutes(b.startTime),
+  )
+  let cumulative = 0
+  let overtimeIndex = sorted.length // default: all regular
+  for (let i = 0; i < sorted.length; i++) {
+    const mins = sorted[i].durationMinutes ?? calcDurationMinutes(sorted[i].startTime, sorted[i].endTime)
+    // Post-add check: catches single entries that alone exceed threshold
+    if (cumulative + mins > thresholdMinutes) {
+      overtimeIndex = i
+      break
+    }
+    cumulative += mins
+  }
+  return {
+    regular: sorted.slice(0, overtimeIndex),
+    overtime: sorted.slice(overtimeIndex),
+  }
 }
 
 /** Format "YYYY-MM-DD" as "DD MMM YYYY". */

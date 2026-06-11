@@ -34,8 +34,8 @@ const SEARCH_ITEMS: SearchItem[] = [
   { path: '/dashboard', label: 'Dashboard', section: 'Pages' },
   { path: '/tasks', label: 'Tasks', section: 'Work' },
   { path: '/timesheets', label: 'Timesheets', section: 'Work' },
-  { path: '/timesheets/manager', label: 'Review Timesheets', section: 'Work', roles: ['ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
-  { path: '/timesheets/reminders', label: 'Send Reminders', section: 'Work', roles: ['ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/timesheets/manager', label: 'Review Timesheets', section: 'Work', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
+  { path: '/timesheets/reminders', label: 'Send Reminders', section: 'Work', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
   { path: '/projects', label: 'Projects', section: 'Work' },
   { path: '/users', label: 'Users', section: 'People', roles: ['ADMIN', 'HR', 'HR_MANAGER'] },
   { path: '/leave', label: 'Leave', section: 'People' },
@@ -43,10 +43,10 @@ const SEARCH_ITEMS: SearchItem[] = [
   { path: '/holidays', label: 'Holidays', section: 'People' },
   { path: '/my-team', label: 'My Team', section: 'People' },
   { path: '/organization', label: 'Organization', section: 'People', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
-  { path: '/departments', label: 'Departments', section: 'People' },
+  { path: '/departments', label: 'Departments', section: 'People', roles: ['ADMIN', 'HR', 'HR_MANAGER'] },
   { path: '/reports', label: 'Reports', section: 'Insights', roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'] },
   { path: '/notifications', label: 'Notifications', section: 'System' },
-  { path: '/settings', label: 'Settings', section: 'System', roles: ['ADMIN'] },
+  { path: '/settings', label: 'Settings', section: 'System' },
 ]
 
 // ── Page title map ────────────────────────────────────────────

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import type { LeaveRequestResponse, LeaveStatus } from '../types/leave.types'
 import { LEAVE_STATUS_CONFIG, LEAVE_STATUSES } from './leaveConfig'
@@ -110,17 +111,17 @@ export function LeaveTable({
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {showEmployee && (
-                  <th className="px-4 py-3 text-left font-medium text-muted-foreground">
+                  <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">
                     User ID
                   </th>
                 )}
                 <SortTh label="Leave Type" k="leaveTypeName" cur={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortTh label="Start Date" k="startDate" cur={sortKey} dir={sortDir} onSort={handleSort} />
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">End Date</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground whitespace-nowrap">End Date</th>
                 <SortTh label="Days" k="totalDays" cur={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortTh label="Status" k="status" cur={sortKey} dir={sortDir} onSort={handleSort} />
                 <SortTh label="Applied" k="appliedAt" cur={sortKey} dir={sortDir} onSort={handleSort} />
-                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
+                <th className="px-4 py-3 text-right font-medium text-muted-foreground whitespace-nowrap">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -160,13 +161,14 @@ export function LeaveTable({
           {Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}
         </span>
         <div className="flex items-center gap-2">
-          <select
+          <AppSelect
             value={pageSize}
-            onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0) }}
-            className="rounded-lg border border-border bg-background px-2 py-1 text-xs"
-          >
-            {PAGE_SIZES.map((s) => <option key={s} value={s}>{s} / page</option>)}
-          </select>
+            onChange={(v) => { setPageSize(Number(v)); setPage(0) }}
+            options={PAGE_SIZES.map((s) => ({ value: s, label: `${s} / page` }))}
+            isSearchable={false}
+            size="sm"
+            className="w-32"
+          />
           <div className="flex gap-1">
             <Button variant="outline" size="sm" disabled={page === 0}
               onClick={() => setPage((p) => p - 1)}>Prev</Button>
@@ -187,7 +189,7 @@ function SortTh({
   const active = cur === k
   return (
     <th
-      className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors"
+      className="px-4 py-3 text-left font-medium text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors whitespace-nowrap"
       onClick={() => onSort(k)}
     >
       <span className="inline-flex items-center gap-1">
@@ -244,16 +246,16 @@ function LeaveRow({
   return (
     <tr className="border-b border-border/60 hover:bg-muted/30 transition-colors last:border-0">
       {showEmployee && (
-        <td className="px-4 py-3 font-mono text-xs text-muted-foreground max-w-[100px] truncate">
+        <td className="px-4 py-3 whitespace-nowrap font-mono text-xs text-muted-foreground">
           {leave.userId.slice(0, 8)}…
         </td>
       )}
       <td className="px-4 py-3 font-medium">{leave.leaveTypeName}</td>
-      <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDate(leave.startDate)}</td>
-      <td className="px-4 py-3 tabular-nums text-muted-foreground">{fmtDate(leave.endDate)}</td>
-      <td className="px-4 py-3 tabular-nums font-semibold">{leave.totalDays}</td>
-      <td className="px-4 py-3"><StatusBadge status={leave.status} /></td>
-      <td className="px-4 py-3 tabular-nums text-muted-foreground text-xs">{fmtDateTime(leave.appliedAt)}</td>
+      <td className="px-4 py-3 tabular-nums text-muted-foreground whitespace-nowrap">{fmtDate(leave.startDate)}</td>
+      <td className="px-4 py-3 tabular-nums text-muted-foreground whitespace-nowrap">{fmtDate(leave.endDate)}</td>
+      <td className="px-4 py-3 tabular-nums font-semibold whitespace-nowrap">{leave.totalDays}</td>
+      <td className="px-4 py-3 whitespace-nowrap"><StatusBadge status={leave.status} /></td>
+      <td className="px-4 py-3 tabular-nums text-muted-foreground text-xs whitespace-nowrap">{fmtDateTime(leave.appliedAt)}</td>
       <td className="px-4 py-3">
         <div className="flex items-center justify-end gap-1">
           {onView && (

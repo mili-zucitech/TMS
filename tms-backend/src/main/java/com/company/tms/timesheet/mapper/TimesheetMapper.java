@@ -22,6 +22,7 @@ public interface TimesheetMapper {
     // Timesheet mappings
     // -------------------------------------------------------------------------
 
+    @Mapping(target = "totalMinutes", ignore = true)
     TimesheetResponse toTimesheetResponse(Timesheet timesheet);
 
     @Mapping(target = "id", ignore = true)

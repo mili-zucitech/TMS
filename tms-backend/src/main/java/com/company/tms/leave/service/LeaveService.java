@@ -1,6 +1,7 @@
 package com.company.tms.leave.service;
 
 import com.company.tms.exception.ResourceNotFoundException;
+import com.company.tms.exception.ForbiddenException;
 import com.company.tms.leave.dto.LeaveRequestCreateRequest;
 import com.company.tms.leave.dto.LeaveRequestResponse;
 import com.company.tms.leave.entity.Leave;
@@ -17,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,11 +54,25 @@ public class LeaveService {
         log.info("Creating leave request for user {} from {} to {}",
                 request.getUserId(), request.getStartDate(), request.getEndDate());
 
+        // Enforce that non-privileged callers can only apply leave for themselves
+        String callerEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        userRepository.findByEmail(callerEmail).ifPresent(caller -> {
+            boolean isPrivileged = SecurityContextHolder.getContext().getAuthentication()
+                    .getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                               || a.getAuthority().equals("ROLE_HR")
+                               || a.getAuthority().equals("ROLE_HR_MANAGER")
+                               || a.getAuthority().equals("ROLE_DIRECTOR"));
+            if (!isPrivileged && !caller.getId().equals(request.getUserId())) {
+                throw new ForbiddenException("You can only apply leave requests for yourself.");
+            }
+        });
+
         leaveValidator.validateLeaveTypeExists(request.getLeaveTypeId());
         leaveValidator.validateDateRange(request.getStartDate(), request.getEndDate());
 
         int totalDays = leaveValidator.calculateTotalDays(request.getStartDate(), request.getEndDate());
-        leaveValidator.validateSufficientBalance(request.getUserId(), request.getLeaveTypeId(), totalDays);
+        leaveValidator.validateSufficientBalance(request.getUserId(), request.getLeaveTypeId(), totalDays, request.getStartDate().getYear());
         leaveValidator.validateNoApprovedLeaveOverlap(
                 request.getUserId(), request.getStartDate(), request.getEndDate(), -1L);
 
@@ -95,8 +111,10 @@ public class LeaveService {
      * Approves a PENDING leave request and deducts from the user's leave balance.
      */
     @Transactional
-    public LeaveRequestResponse approveLeaveRequest(Long id, UUID approverId) {
-        log.info("Approving leave request {} by {}", id, approverId);
+    public LeaveRequestResponse approveLeaveRequest(Long id) {
+        String callerEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID approverId = userRepository.findByEmail(callerEmail).map(User::getId).orElse(null);
+        log.info("Approving leave request {} by {}", id, callerEmail);
         Leave leave = getExistingLeave(id);
         leaveValidator.validateLeaveIsPending(leave.getStatus(), id);
 
@@ -106,7 +124,7 @@ public class LeaveService {
         leave.setRejectionReason(null);
 
         leaveBalanceService.deductLeaveBalance(
-                leave.getUserId(), leave.getLeaveTypeId(), leave.getTotalDays());
+                leave.getUserId(), leave.getLeaveTypeId(), leave.getTotalDays(), leave.getStartDate().getYear());
 
         log.info("Leave request {} approved", id);
         return enrichWithLeaveTypeName(leaveMapper.toLeaveRequestResponse(leaveRepository.save(leave)));
@@ -116,8 +134,10 @@ public class LeaveService {
      * Rejects a PENDING leave request with a mandatory reason.
      */
     @Transactional
-    public LeaveRequestResponse rejectLeaveRequest(Long id, UUID approverId, String rejectionReason) {
-        log.info("Rejecting leave request {} by {}", id, approverId);
+    public LeaveRequestResponse rejectLeaveRequest(Long id, String rejectionReason) {
+        String callerEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        UUID approverId = userRepository.findByEmail(callerEmail).map(User::getId).orElse(null);
+        log.info("Rejecting leave request {} by {}", id, callerEmail);
         Leave leave = getExistingLeave(id);
         leaveValidator.validateLeaveIsPending(leave.getStatus(), id);
 
@@ -179,17 +199,21 @@ public class LeaveService {
         Map<UUID, String> nameMap = userRepository.findAllById(userIds).stream()
                 .collect(Collectors.toMap(User::getId, User::getName));
 
+        Map<Long, String> typeNames = buildLeaveTypeNameMap();
         return leaves.stream()
                 .map(leaveMapper::toLeaveRequestResponse)
-                .map(this::enrichWithLeaveTypeName)
+                .peek(r -> { if (r.getLeaveTypeId() != null) r.setLeaveTypeName(typeNames.get(r.getLeaveTypeId())); })
                 .peek(r -> r.setEmployeeName(nameMap.getOrDefault(r.getUserId(), r.getUserId().toString())))
                 .collect(Collectors.toList());
     }
 
     public List<LeaveRequestResponse> getLeaveRequestsByUser(UUID userId) {
-        return leaveRepository.findByUserId(userId).stream()
+        List<Leave> leaves = leaveRepository.findByUserId(userId);
+        if (leaves.isEmpty()) return List.of();
+        Map<Long, String> typeNames = buildLeaveTypeNameMap();
+        return leaves.stream()
                 .map(leaveMapper::toLeaveRequestResponse)
-                .map(this::enrichWithLeaveTypeName)
+                .peek(r -> { if (r.getLeaveTypeId() != null) r.setLeaveTypeName(typeNames.get(r.getLeaveTypeId())); })
                 .collect(Collectors.toList());
     }
 
@@ -202,23 +226,63 @@ public class LeaveService {
                 .map(User::getId)
                 .collect(Collectors.toList());
 
+        Map<Long, String> typeNames = buildLeaveTypeNameMap();
         return leaveRepository.findByUserIdIn(reporteeIds).stream()
                 .map(leaveMapper::toLeaveRequestResponse)
-                .map(this::enrichWithLeaveTypeName)
+                .peek(r -> { if (r.getLeaveTypeId() != null) r.setLeaveTypeName(typeNames.get(r.getLeaveTypeId())); })
                 .peek(r -> r.setEmployeeName(nameMap.get(r.getUserId())))
                 .collect(Collectors.toList());
     }
 
     public List<LeaveRequestResponse> getLeaveRequestsByStatus(LeaveStatus status) {
-        return leaveRepository.findByStatus(status).stream()
+        List<Leave> statusLeaves = leaveRepository.findByStatus(status);
+        if (statusLeaves.isEmpty()) return List.of();
+        Map<Long, String> typeNames = buildLeaveTypeNameMap();
+        return statusLeaves.stream()
                 .map(leaveMapper::toLeaveRequestResponse)
-                .map(this::enrichWithLeaveTypeName)
+                .peek(r -> { if (r.getLeaveTypeId() != null) r.setLeaveTypeName(typeNames.get(r.getLeaveTypeId())); })
                 .collect(Collectors.toList());
     }
 
     Leave getExistingLeave(Long id) {
         return leaveRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LeaveRequest", "id", id));
+    }
+
+    /**
+     * Returns true when the given email belongs to the owner of the specified leave request.
+     * Used in @PreAuthorize SpEL expressions.
+     */
+    public boolean isOwnerOfLeave(String userEmail, Long leaveId) {
+        try {
+            Leave leave = getExistingLeave(leaveId);
+            return userRepository.findByEmail(userEmail)
+                    .map(u -> u.getId().equals(leave.getUserId()))
+                    .orElse(false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Returns true when the given email belongs to the reporting manager of the leave requester.
+     * Used in @PreAuthorize SpEL expressions.
+     */
+    public boolean isReportingManagerOfLeave(String managerEmail, Long leaveId) {
+        try {
+            Leave leave = getExistingLeave(leaveId);
+            return userRepository.findByEmail(managerEmail)
+                    .flatMap(mgr -> userRepository.findById(leave.getUserId())
+                            .map(emp -> mgr.getId().equals(emp.getManagerId())))
+                    .orElse(false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private Map<Long, String> buildLeaveTypeNameMap() {
+        return leaveTypeRepository.findAll().stream()
+                .collect(Collectors.toMap(lt -> lt.getId(), lt -> lt.getName()));
     }
 
     private LeaveRequestResponse enrichWithLeaveTypeName(LeaveRequestResponse response) {
@@ -230,4 +294,3 @@ public class LeaveService {
         return response;
     }
 }
-

@@ -8,7 +8,8 @@ import {
   RefreshCw,
   AlertCircle,
   History,
-  TrendingUp,
+  Pencil,
+  Eye,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
@@ -24,6 +25,18 @@ import {
 import type { TimesheetResponse } from '../types/timesheet.types'
 
 import { toast } from 'sonner'
+
+// ── Left border accent color per status ───────────────────────────────────
+function statusBorderColor(status: TimesheetResponse['status']): string {
+  const map: Record<string, string> = {
+    DRAFT: 'border-l-slate-400',
+    SUBMITTED: 'border-l-blue-500',
+    APPROVED: 'border-l-emerald-500',
+    REJECTED: 'border-l-red-500',
+    LOCKED: 'border-l-violet-500',
+  }
+  return map[status] ?? 'border-l-slate-400'
+}
 
 export default function TimesheetDashboardPage() {
   const navigate = useNavigate()
@@ -80,23 +93,20 @@ export default function TimesheetDashboardPage() {
     if (ts) navigate(`/timesheets/${ts.id}`)
   }
 
-  // ── Status color for timeline dots ────────────────────────────────────────
-  function dotColor(status: TimesheetResponse['status']) {
-    const map: Record<string, string> = {
-      DRAFT: 'bg-slate-400',
-      SUBMITTED: 'bg-blue-500',
-      APPROVED: 'bg-emerald-500',
-      REJECTED: 'bg-red-500',
-      LOCKED: 'bg-violet-500',
-    }
-    return map[status] ?? 'bg-slate-400'
-  }
-
   const loading = isLoading
+
+  // ── CTA button config per state ──────────────────────────────────────────
+  const ctaConfig = useMemo(() => {
+    if (!currentTimesheet) return { icon: Plus, label: 'Start This Week' }
+    if (currentTimesheet.status === 'DRAFT' || currentTimesheet.status === 'REJECTED')
+      return { icon: Pencil, label: 'Log Hours' }
+    return { icon: Eye, label: 'View Timesheet' }
+  }, [currentTimesheet])
 
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
         {/* ── Page header ─────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -140,14 +150,14 @@ export default function TimesheetDashboardPage() {
           </div>
         )}
 
-        {/* ── Current week card ─────────────────────────────────────── */}
+        {/* ── Current week card ─────────────────────────────────── */}
         <section>
           <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-muted-foreground" />
             Current Week
           </h2>
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-emerald-500/8 to-teal-500/5 p-6 shadow-sm">
             {loading ? (
               <div className="space-y-3">
                 <div className="h-5 w-48 animate-pulse rounded bg-muted" />
@@ -163,9 +173,7 @@ export default function TimesheetDashboardPage() {
                     <div className="flex items-center gap-2 mt-1">
                       <TimesheetStatusBadge status={currentTimesheet.status} />
                       {currentTimesheet.status === 'REJECTED' && currentTimesheet.rejectionReason && (
-                        <span className="text-xs text-destructive">
-                          {currentTimesheet.rejectionReason}
-                        </span>
+                        <span className="text-xs text-destructive">{currentTimesheet.rejectionReason}</span>
                       )}
                     </div>
                   ) : (
@@ -178,19 +186,8 @@ export default function TimesheetDashboardPage() {
                   loading={isCreating}
                   className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white border-0 shrink-0"
                 >
-                  {currentTimesheet ? (
-                    <>
-                      <CalendarDays className="h-4 w-4" />
-                      {currentTimesheet.status === 'DRAFT' || currentTimesheet.status === 'REJECTED'
-                        ? 'Log Hours'
-                        : 'View Timesheet'}
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4" />
-                      Start This Week
-                    </>
-                  )}
+                  <ctaConfig.icon className="h-4 w-4" />
+                  {ctaConfig.label}
                 </Button>
               </div>
             )}
@@ -200,16 +197,19 @@ export default function TimesheetDashboardPage() {
         {/* ── Recent timesheets ─────────────────────────────────────── */}
         <section>
           <h2 className="text-base font-semibold mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <History className="h-4 w-4 text-muted-foreground" />
             Recent Timesheets
           </h2>
 
           {loading ? (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="rounded-xl border border-border p-4 space-y-2">
-                  <div className="h-4 w-48 animate-pulse rounded bg-muted" />
-                  <div className="h-4 w-24 animate-pulse rounded bg-muted" />
+                <div key={i} className="rounded-xl border border-border p-4 flex gap-3">
+                  <div className="w-1 rounded-full bg-muted shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 w-48 animate-pulse rounded bg-muted" />
+                    <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -224,22 +224,19 @@ export default function TimesheetDashboardPage() {
                 <button
                   key={ts.id}
                   onClick={() => navigate(`/timesheets/${ts.id}`)}
-                  className="w-full flex items-center justify-between rounded-xl border border-border bg-card px-5 py-4 hover:bg-muted/30 transition-colors text-left group"
+                  className={`w-full flex items-center justify-between rounded-r-xl border border-border border-l-4 bg-card pl-4 pr-5 py-4 hover:bg-muted/30 hover:shadow-sm transition-all text-left group ${statusBorderColor(ts.status)}`}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className={`h-2.5 w-2.5 rounded-full shrink-0 ${dotColor(ts.status)}`} />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {formatDisplayDate(ts.weekStartDate)} – {formatDisplayDate(ts.weekEndDate)}
+                  <div>
+                    <p className="text-sm font-medium">
+                      {formatDisplayDate(ts.weekStartDate)} – {formatDisplayDate(ts.weekEndDate)}
+                    </p>
+                    {ts.submittedAt && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Submitted {new Date(ts.submittedAt).toLocaleDateString()}
                       </p>
-                      {ts.submittedAt && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          Submitted {new Date(ts.submittedAt).toLocaleDateString()}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 shrink-0">
                     <TimesheetStatusBadge status={ts.status} />
                     <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:translate-x-0.5 transition-transform" />
                   </div>
@@ -259,6 +256,7 @@ export default function TimesheetDashboardPage() {
             </div>
           )}
         </section>
+
       </div>
     </div>
   )

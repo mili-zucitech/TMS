@@ -5,8 +5,11 @@ import com.company.tms.project.dto.ProjectCreateRequest;
 import com.company.tms.project.dto.ProjectResponse;
 import com.company.tms.project.dto.ProjectUpdateRequest;
 import com.company.tms.project.entity.Project;
+import com.company.tms.project.entity.ProjectAssignment;
+import com.company.tms.project.entity.ProjectRole;
 import com.company.tms.project.entity.ProjectStatus;
 import com.company.tms.project.mapper.ProjectMapper;
+import com.company.tms.project.repository.ProjectAssignmentRepository;
 import com.company.tms.project.repository.ProjectRepository;
 import com.company.tms.project.validator.ProjectValidator;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +19,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.util.Optional;
+import java.util.UUID;
 
 @SuppressWarnings("null")
 @Slf4j
@@ -26,6 +31,7 @@ import java.util.Optional;
 public class ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final ProjectAssignmentRepository projectAssignmentRepository;
     private final ProjectMapper projectMapper;
     private final ProjectValidator projectValidator;
 
@@ -44,6 +50,12 @@ public class ProjectService {
 
         Project saved = projectRepository.save(project);
         log.info("Project created with id: {} and code: {}", saved.getId(), saved.getProjectCode());
+
+        // Auto-assign the project manager as a member so they can log time immediately.
+        if (saved.getProjectManagerId() != null) {
+            autoAssignManager(saved.getId(), saved.getProjectManagerId(), saved);
+        }
+
         return projectMapper.toProjectResponse(saved);
     }
 
@@ -61,6 +73,8 @@ public class ProjectService {
                 request.getEndDate()   != null ? request.getEndDate()   : project.getEndDate()
         );
 
+        UUID oldManagerId = project.getProjectManagerId();
+
         projectMapper.updateProjectEntity(request, project);
 
         if (request.getName()             != null) project.setName(request.getName());
@@ -73,6 +87,26 @@ public class ProjectService {
         if (request.getStatus()           != null) project.setStatus(request.getStatus());
 
         Project saved = projectRepository.save(project);
+
+        // Keep project assignments in sync when the manager changes.
+        UUID newManagerId = request.getProjectManagerId();
+        if (newManagerId != null && !newManagerId.equals(oldManagerId)) {
+            // Remove the old manager's auto-assigned PROJECT_MANAGER entry (if present).
+            if (oldManagerId != null) {
+                projectAssignmentRepository
+                        .findByUserIdAndProjectId(oldManagerId, saved.getId())
+                        .ifPresent(a -> {
+                            if (a.getRole() == ProjectRole.PROJECT_MANAGER) {
+                                projectAssignmentRepository.delete(a);
+                                log.info("Removed PROJECT_MANAGER assignment for old manager userId={} on projectId={}",
+                                        oldManagerId, saved.getId());
+                            }
+                        });
+            }
+            // Assign the new manager (skip if they already have any assignment on this project).
+            autoAssignManager(saved.getId(), newManagerId, saved);
+        }
+
         log.info("Project updated with id: {}", saved.getId());
         return projectMapper.toProjectResponse(saved);
     }
@@ -108,7 +142,7 @@ public class ProjectService {
     }
 
     // -------------------------------------------------------------------------
-    // Package-private helper for use by ProjectAssignmentService
+    // Package-private helpers
     // -------------------------------------------------------------------------
 
     Project getExistingProject(Long id) {
@@ -119,6 +153,27 @@ public class ProjectService {
      * Generates the next sequential project code in the format PRJ-XXXX.
      * Synchronized to prevent duplicate codes under concurrent creation requests.
      */
+    /**
+     * Creates a PROJECT_MANAGER assignment for the given user unless they already
+     * have any assignment on this project.
+     */
+    private void autoAssignManager(Long projectId, UUID managerId, Project project) {
+        if (projectAssignmentRepository.existsByUserIdAndProjectId(managerId, projectId)) {
+            log.debug("Manager userId={} already assigned to projectId={}, skipping auto-assign", managerId, projectId);
+            return;
+        }
+        ProjectAssignment assignment = ProjectAssignment.builder()
+                .projectId(projectId)
+                .userId(managerId)
+                .role(ProjectRole.PROJECT_MANAGER)
+                .allocationPercentage(BigDecimal.valueOf(100))
+                .startDate(project.getStartDate())
+                .endDate(project.getEndDate())
+                .build();
+        projectAssignmentRepository.save(assignment);
+        log.info("Auto-assigned PROJECT_MANAGER userId={} to projectId={}", managerId, projectId);
+    }
+
     private String generateNextProjectCode() {
         Optional<String> maxCode = projectRepository.findMaxProjectCode();
         if (maxCode.isEmpty()) {

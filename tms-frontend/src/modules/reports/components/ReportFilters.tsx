@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { CalendarDays, SlidersHorizontal, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import type { ReportFilters } from '../types/report.types'
 
@@ -50,9 +51,11 @@ export function ReportFilters({
 }: ReportFiltersProps) {
   const [local, setLocal] = useState<ReportFilters>(filters)
   const [open, setOpen] = useState(false)
+  const [activeRangeDays, setActiveRangeDays] = useState<number | null>(null)
 
   const set = useCallback(<K extends keyof ReportFilters>(key: K, val: ReportFilters[K]) => {
     setLocal((prev) => ({ ...prev, [key]: val }))
+    setActiveRangeDays(null)  // manual date edit clears active range
   }, [])
 
   const applyQuickRange = useCallback((days: number) => {
@@ -61,6 +64,7 @@ export function ReportFilters({
     start.setDate(end.getDate() - days)
     const next = { ...local, startDate: toISO(start), endDate: toISO(end) }
     setLocal(next)
+    setActiveRangeDays(days)
     onApply(next)
   }, [local, onApply])
 
@@ -72,6 +76,7 @@ export function ReportFilters({
   const handleReset = useCallback(() => {
     const empty: ReportFilters = {}
     setLocal(empty)
+    setActiveRangeDays(null)
     onApply(empty)
   }, [onApply])
 
@@ -92,7 +97,12 @@ export function ReportFilters({
           <button
             key={r.label}
             onClick={() => applyQuickRange(r.days)}
-            className="rounded-full border border-border bg-background px-3 py-1 text-xs font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+            className={cn(
+              'rounded-full border px-3 py-1 text-xs font-medium transition-colors',
+              activeRangeDays === r.days
+                ? 'border-primary bg-primary text-primary-foreground'
+                : 'border-border bg-background hover:bg-accent hover:text-accent-foreground',
+            )}
           >
             {r.label}
           </button>
@@ -151,64 +161,48 @@ export function ReportFilters({
             {showDepartment && departmentOptions.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Department</label>
-                <select
+                <AppSelect
                   value={local.departmentId ?? ''}
-                  onChange={(e) => set('departmentId', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">All departments</option>
-                  {departmentOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  onChange={(v) => set('departmentId', v ? Number(v) : undefined)}
+                  options={[{ value: '', label: 'All departments' }, ...departmentOptions]}
+                  placeholder="All departments"
+                />
               </div>
             )}
 
             {showEmployee && employeeOptions.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Employee</label>
-                <select
+                <AppSelect
                   value={local.userId ?? ''}
-                  onChange={(e) => set('userId', e.target.value || undefined)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">All employees</option>
-                  {employeeOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  onChange={(v) => set('userId', v ? String(v) : undefined)}
+                  options={[{ value: '', label: 'All employees' }, ...employeeOptions]}
+                  placeholder="All employees"
+                />
               </div>
             )}
 
             {showProject && projectOptions.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Project</label>
-                <select
+                <AppSelect
                   value={local.projectId ?? ''}
-                  onChange={(e) => set('projectId', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">All projects</option>
-                  {projectOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  onChange={(v) => set('projectId', v ? Number(v) : undefined)}
+                  options={[{ value: '', label: 'All projects' }, ...projectOptions]}
+                  placeholder="All projects"
+                />
               </div>
             )}
 
             {showLeaveType && leaveTypeOptions.length > 0 && (
               <div className="space-y-1">
                 <label className="text-xs font-medium text-muted-foreground">Leave Type</label>
-                <select
+                <AppSelect
                   value={local.leaveTypeId ?? ''}
-                  onChange={(e) => set('leaveTypeId', e.target.value ? Number(e.target.value) : undefined)}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                  <option value="">All types</option>
-                  {leaveTypeOptions.map((o) => (
-                    <option key={o.value} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
+                  onChange={(v) => set('leaveTypeId', v ? Number(v) : undefined)}
+                  options={[{ value: '', label: 'All types' }, ...leaveTypeOptions]}
+                  placeholder="All types"
+                />
               </div>
             )}
           </div>

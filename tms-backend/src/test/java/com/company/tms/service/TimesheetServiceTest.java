@@ -15,6 +15,7 @@ import com.company.tms.timesheet.service.TimesheetService;
 import com.company.tms.timesheet.validator.TimesheetValidator;
 import com.company.tms.user.entity.User;
 import com.company.tms.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -25,6 +26,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -49,6 +52,11 @@ class TimesheetServiceTest {
     @InjectMocks
     private TimesheetService timesheetService;
 
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     private UUID userId;
     private UUID managerId;
     private User testUser;
@@ -63,6 +71,8 @@ class TimesheetServiceTest {
     void setUp() {
         userId = UUID.randomUUID();
         managerId = UUID.randomUUID();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("manager@company.com", null, List.of()));
         weekStart = LocalDate.of(2026, 3, 16);
 
         testUser = User.builder()
@@ -185,6 +195,105 @@ class TimesheetServiceTest {
     }
 
     @Nested
+    @DisplayName("GetTimesheetsByUserFiltered")
+    class GetTimesheetsByUserFiltered {
+
+        private TimesheetResponse response2026W13;
+
+        @BeforeEach
+        void setUpFiltered() {
+            response2026W13 = TimesheetResponse.builder()
+                    .id(10L)
+                    .userId(userId)
+                    .weekStartDate(LocalDate.of(2026, 3, 23)) // ISO week 13 of 2026
+                    .weekEndDate(LocalDate.of(2026, 3, 29))
+                    .status(TimesheetStatus.DRAFT)
+                    .build();
+        }
+
+        @Test
+        @DisplayName("year-only filter passes correct date range to repository")
+        void yearOnly_PassesCorrectRange() {
+            when(timesheetRepository.findByUserIdAndWeekStartDateRange(
+                    userId,
+                    LocalDate.of(2026, 1, 1),
+                    LocalDate.of(2026, 12, 31)))
+                    .thenReturn(List.of(draftTimesheet));
+            when(timesheetMapper.toTimesheetResponse(draftTimesheet)).thenReturn(timesheetResponse);
+
+            List<TimesheetResponse> result = timesheetService.getTimesheetsByUserFiltered(
+                    userId, 2026, null, null);
+
+            assertThat(result).hasSize(1);
+            verify(timesheetRepository).findByUserIdAndWeekStartDateRange(
+                    userId, LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31));
+        }
+
+        @Test
+        @DisplayName("year+month filter passes first and last day of month to repository")
+        void yearAndMonth_PassesMonthRange() {
+            when(timesheetRepository.findByUserIdAndWeekStartDateRange(
+                    userId,
+                    LocalDate.of(2026, 3, 1),
+                    LocalDate.of(2026, 3, 31)))
+                    .thenReturn(List.of(draftTimesheet));
+            when(timesheetMapper.toTimesheetResponse(draftTimesheet)).thenReturn(timesheetResponse);
+
+            List<TimesheetResponse> result = timesheetService.getTimesheetsByUserFiltered(
+                    userId, 2026, 3, null);
+
+            assertThat(result).hasSize(1);
+            verify(timesheetRepository).findByUserIdAndWeekStartDateRange(
+                    userId, LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
+        }
+
+        @Test
+        @DisplayName("year+week filter passes exact ISO Monday as from=to to repository")
+        void yearAndWeek_PassesExactMonday() {
+            // ISO week 13 of 2026: Jan4=Thu, week1Monday=Dec29 2025, +12 weeks = Mar 23 2026
+            LocalDate week13Monday = LocalDate.of(2026, 3, 23);
+            when(timesheetRepository.findByUserIdAndWeekStartDateRange(
+                    userId, week13Monday, week13Monday))
+                    .thenReturn(List.of(draftTimesheet));
+            when(timesheetMapper.toTimesheetResponse(draftTimesheet)).thenReturn(response2026W13);
+
+            List<TimesheetResponse> result = timesheetService.getTimesheetsByUserFiltered(
+                    userId, 2026, null, 13);
+
+            assertThat(result).hasSize(1);
+            verify(timesheetRepository).findByUserIdAndWeekStartDateRange(
+                    userId, week13Monday, week13Monday);
+        }
+
+        @Test
+        @DisplayName("no filter passes null bounds (return all)")
+        void noFilter_PassesNullBounds() {
+            when(timesheetRepository.findByUserIdAndWeekStartDateRange(userId, null, null))
+                    .thenReturn(List.of(draftTimesheet));
+            when(timesheetMapper.toTimesheetResponse(draftTimesheet)).thenReturn(timesheetResponse);
+
+            List<TimesheetResponse> result = timesheetService.getTimesheetsByUserFiltered(
+                    userId, null, null, null);
+
+            assertThat(result).hasSize(1);
+            verify(timesheetRepository).findByUserIdAndWeekStartDateRange(userId, null, null);
+        }
+
+        @Test
+        @DisplayName("empty result from repository returns empty list, not error")
+        void emptyResult_ReturnsEmptyList() {
+            when(timesheetRepository.findByUserIdAndWeekStartDateRange(
+                    any(), any(), any()))
+                    .thenReturn(List.of());
+
+            List<TimesheetResponse> result = timesheetService.getTimesheetsByUserFiltered(
+                    userId, 2020, 1, null);
+
+            assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
     @DisplayName("SubmitTimesheet")
     class SubmitTimesheet {
 
@@ -205,7 +314,7 @@ class TimesheetServiceTest {
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
             when(userRepository.findById(managerId)).thenReturn(Optional.of(managerUser));
 
-            TimesheetResponse result = timesheetService.submitTimesheet(1L);
+            TimesheetResponse result = timesheetService.submitTimesheet(1L, new com.company.tms.timesheet.dto.TimesheetSubmitRequest());
 
             assertThat(result.getStatus()).isEqualTo(TimesheetStatus.SUBMITTED);
             assertThat(draftTimesheet.getStatus()).isEqualTo(TimesheetStatus.SUBMITTED);
@@ -226,7 +335,7 @@ class TimesheetServiceTest {
             doThrow(new InvalidTimesheetStateException("Cannot submit APPROVED timesheet"))
                     .when(timesheetValidator).validateTimesheetCanBeSubmitted(approvedTimesheet);
 
-            assertThatThrownBy(() -> timesheetService.submitTimesheet(3L))
+            assertThatThrownBy(() -> timesheetService.submitTimesheet(3L, new com.company.tms.timesheet.dto.TimesheetSubmitRequest()))
                     .isInstanceOf(InvalidTimesheetStateException.class);
 
             verify(timesheetRepository, never()).save(any());
@@ -240,7 +349,7 @@ class TimesheetServiceTest {
             doThrow(new ValidationException("Timesheet 1 has no time entries"))
                     .when(timesheetValidator).validateTimesheetHasEntries(1L);
 
-            assertThatThrownBy(() -> timesheetService.submitTimesheet(1L))
+            assertThatThrownBy(() -> timesheetService.submitTimesheet(1L, new com.company.tms.timesheet.dto.TimesheetSubmitRequest()))
                     .isInstanceOf(ValidationException.class)
                     .hasMessageContaining("no time entries");
         }
@@ -260,9 +369,10 @@ class TimesheetServiceTest {
             doNothing().when(timesheetValidator).validateTimesheetCanBeApproved(submittedTimesheet);
             when(timesheetRepository.save(submittedTimesheet)).thenReturn(submittedTimesheet);
             when(timesheetMapper.toTimesheetResponse(submittedTimesheet)).thenReturn(approvedResponse);
+            when(userRepository.findByEmail("manager@company.com")).thenReturn(Optional.of(managerUser));
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
 
-            TimesheetResponse result = timesheetService.approveTimesheet(2L, managerId);
+            TimesheetResponse result = timesheetService.approveTimesheet(2L);
 
             assertThat(result.getStatus()).isEqualTo(TimesheetStatus.APPROVED);
             assertThat(submittedTimesheet.getStatus()).isEqualTo(TimesheetStatus.APPROVED);
@@ -280,7 +390,7 @@ class TimesheetServiceTest {
             doThrow(new InvalidTimesheetStateException("Only SUBMITTED timesheets can be approved"))
                     .when(timesheetValidator).validateTimesheetCanBeApproved(draftTimesheet);
 
-            assertThatThrownBy(() -> timesheetService.approveTimesheet(1L, managerId))
+            assertThatThrownBy(() -> timesheetService.approveTimesheet(1L))
                     .isInstanceOf(InvalidTimesheetStateException.class);
         }
     }
@@ -300,9 +410,10 @@ class TimesheetServiceTest {
             doNothing().when(timesheetValidator).validateTimesheetCanBeApproved(submittedTimesheet);
             when(timesheetRepository.save(submittedTimesheet)).thenReturn(submittedTimesheet);
             when(timesheetMapper.toTimesheetResponse(submittedTimesheet)).thenReturn(rejectedResponse);
+            when(userRepository.findByEmail("manager@company.com")).thenReturn(Optional.of(managerUser));
             when(userRepository.findById(userId)).thenReturn(Optional.of(testUser));
 
-            timesheetService.rejectTimesheet(2L, managerId, "Missing project details");
+            timesheetService.rejectTimesheet(2L, "Missing project details");
 
             assertThat(submittedTimesheet.getStatus()).isEqualTo(TimesheetStatus.REJECTED);
             assertThat(submittedTimesheet.getRejectionReason()).isEqualTo("Missing project details");

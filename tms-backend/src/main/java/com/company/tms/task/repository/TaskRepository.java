@@ -30,5 +30,11 @@ public interface TaskRepository extends JpaRepository<Task, Long> {
 
     @Query("SELECT MAX(t.taskCode) FROM Task t WHERE t.taskCode LIKE 'TSK-%'")
     java.util.Optional<String> findMaxTaskCode();
+
+    /** Count of tasks for a project (for utilization calculation). */
+    long countByProjectId(Long projectId);
+
+    /** Count of tasks with a given status in a project. */
+    long countByProjectIdAndStatus(Long projectId, TaskStatus status);
 }
 

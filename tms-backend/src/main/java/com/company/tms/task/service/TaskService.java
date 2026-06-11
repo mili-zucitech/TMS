@@ -67,7 +67,7 @@ public class TaskService {
             );
         }
 
-        return taskMapper.toTaskResponse(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -79,7 +79,7 @@ public class TaskService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
         return taskRepository.findByCreatedByUserId(user.getId(), pageable)
-                .map(taskMapper::toTaskResponse);
+                .map(this::toResponse);
     }
 
     /**
@@ -112,7 +112,7 @@ public class TaskService {
 
         Task saved = taskRepository.save(task);
         log.info("Task updated with id: {}", saved.getId());
-        return taskMapper.toTaskResponse(saved);
+        return toResponse(saved);
     }
 
     /**
@@ -120,7 +120,7 @@ public class TaskService {
      */
     public TaskResponse getTaskById(Long id) {
         log.debug("Fetching task by id: {}", id);
-        return taskMapper.toTaskResponse(getExistingTask(id));
+        return toResponse(getExistingTask(id));
     }
 
     /**
@@ -128,7 +128,7 @@ public class TaskService {
      */
     public Page<TaskResponse> getAllTasks(Pageable pageable) {
         log.debug("Fetching all tasks, page: {}", pageable.getPageNumber());
-        return taskRepository.findAll(pageable).map(taskMapper::toTaskResponse);
+        return taskRepository.findAll(pageable).map(this::toResponse);
     }
 
     /**
@@ -140,7 +140,7 @@ public class TaskService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User", "email", email));
         return taskRepository.findByAssignedUserId(user.getId(), pageable)
-                .map(taskMapper::toTaskResponse);
+                .map(this::toResponse);
     }
 
     /**
@@ -150,7 +150,7 @@ public class TaskService {
         log.debug("Fetching tasks for projectId: {}", projectId);
         taskValidator.validateProjectExists(projectId);
         return taskRepository.findByProjectId(projectId)
-                .stream().map(taskMapper::toTaskResponse).toList();
+                .stream().map(this::toResponse).toList();
     }
 
     /**
@@ -159,7 +159,7 @@ public class TaskService {
     public List<TaskResponse> getTasksByUser(UUID userId) {
         log.debug("Fetching tasks for userId: {}", userId);
         return taskRepository.findByAssignedUserId(userId)
-                .stream().map(taskMapper::toTaskResponse).toList();
+                .stream().map(this::toResponse).toList();
     }
 
     /**
@@ -170,7 +170,7 @@ public class TaskService {
         log.info("Updating task {} status to {}", id, newStatus);
         Task task = getExistingTask(id);
         task.setStatus(newStatus);
-        return taskMapper.toTaskResponse(taskRepository.save(task));
+        return toResponse(taskRepository.save(task));
     }
 
     /**
@@ -185,6 +185,19 @@ public class TaskService {
     }
 
     // -------------------------------------------------------------------------
+    // Private helper: map task to response and enrich with creator name
+    // -------------------------------------------------------------------------
+
+    private TaskResponse toResponse(Task task) {
+        TaskResponse response = taskMapper.toTaskResponse(task);
+        if (task.getCreatedByUserId() != null) {
+            userRepository.findById(task.getCreatedByUserId())
+                    .ifPresent(u -> response.setCreatedByUserName(u.getName()));
+        }
+        return response;
+    }
+
+    // -------------------------------------------------------------------------
     // Package-private helper used by TaskCommentService
     // -------------------------------------------------------------------------
 
@@ -194,10 +207,26 @@ public class TaskService {
     }
 
     /**
+     * Returns true when the given email is the assigned user of the specified task.
+     * Used in @PreAuthorize SpEL expressions.
+     */
+    public boolean isAssignedUser(String userEmail, Long taskId) {
+        try {
+            Task task = getExistingTask(taskId);
+            if (task.getAssignedUserId() == null) return false;
+            return userRepository.findByEmail(userEmail)
+                    .map(u -> u.getId().equals(task.getAssignedUserId()))
+                    .orElse(false);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Generates the next sequential task code in the format TSK-XXXX.
      * Synchronized to prevent duplicate codes under concurrent creation requests.
      */
-    private String generateNextTaskCode() {
+    private synchronized String generateNextTaskCode() {
         Optional<String> maxCode = taskRepository.findMaxTaskCode();
         if (maxCode.isEmpty()) {
             return "TSK-0001";

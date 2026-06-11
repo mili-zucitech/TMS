@@ -107,6 +107,59 @@ class TimesheetRepositoryTest {
         assertThat(result).allMatch(ts -> ts.getStatus() == TimesheetStatus.SUBMITTED);
     }
 
+    // ── findByUserIdAndWeekStartDateRange ───────────────────────────────────
+
+    @Test
+    @DisplayName("findByUserIdAndWeekStartDateRange returns timesheets within date range")
+    void findByUserIdAndWeekStartDateRange_WithinRange_ReturnsMatch() {
+        List<Timesheet> result = timesheetRepository.findByUserIdAndWeekStartDateRange(
+                userId1,
+                weekStart.minusDays(1),  // from: day before weekStart
+                weekStart.plusDays(1));  // to:   day after weekStart
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getWeekStartDate()).isEqualTo(weekStart);
+    }
+
+    @Test
+    @DisplayName("findByUserIdAndWeekStartDateRange with null bounds returns all user timesheets")
+    void findByUserIdAndWeekStartDateRange_NullBounds_ReturnsAll() {
+        List<Timesheet> result = timesheetRepository
+                .findByUserIdAndWeekStartDateRange(userId1, null, null);
+
+        assertThat(result).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("findByUserIdAndWeekStartDateRange with exact from=to returns only that week")
+    void findByUserIdAndWeekStartDateRange_ExactWeek_ReturnsSingleWeek() {
+        List<Timesheet> result = timesheetRepository.findByUserIdAndWeekStartDateRange(
+                userId1, weekStart, weekStart);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.getFirst().getWeekStartDate()).isEqualTo(weekStart);
+    }
+
+    @Test
+    @DisplayName("findByUserIdAndWeekStartDateRange does not return other user's timesheets")
+    void findByUserIdAndWeekStartDateRange_OtherUser_ReturnsEmpty() {
+        List<Timesheet> result = timesheetRepository.findByUserIdAndWeekStartDateRange(
+                UUID.randomUUID(), null, null);
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    @DisplayName("findByUserIdAndWeekStartDateRange with out-of-range dates returns empty")
+    void findByUserIdAndWeekStartDateRange_OutOfRange_ReturnsEmpty() {
+        List<Timesheet> result = timesheetRepository.findByUserIdAndWeekStartDateRange(
+                userId1,
+                weekStart.plusYears(1),
+                weekStart.plusYears(2));
+
+        assertThat(result).isEmpty();
+    }
+
     // ============================================================
     // TimeEntryRepository tests
     // ============================================================

@@ -5,14 +5,15 @@ import { cn } from '@/utils/cn'
 export interface DeptFlowNodeData {
   name: string
   description: string | null
-  employeeCount: number
+  managerCount: number
+  totalCount: number
   onToggle: (id: string, collapsed: boolean) => void
   collapsed: boolean
   nodeId: string
 }
 
 export function DeptFlowNode({ data }: { data: DeptFlowNodeData }) {
-  const { name, description, employeeCount, onToggle, collapsed, nodeId } = data
+  const { name, description, managerCount, totalCount, onToggle, collapsed, nodeId } = data
 
   return (
     <>
@@ -20,8 +21,9 @@ export function DeptFlowNode({ data }: { data: DeptFlowNodeData }) {
 
       <button
         onClick={() => onToggle(nodeId, !collapsed)}
+        onPointerDown={(e) => e.stopPropagation()}
         className={cn(
-          'group flex w-[220px] flex-col gap-2 rounded-xl border p-4 text-left',
+          'group flex w-[220px] flex-col gap-2 rounded-xl border p-4 text-left nopan',
           'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-lg shadow-emerald-500/25',
           'transition-all duration-200 hover:shadow-xl hover:shadow-emerald-500/30 hover:scale-[1.02]',
           'focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60',
@@ -49,7 +51,7 @@ export function DeptFlowNode({ data }: { data: DeptFlowNodeData }) {
         <div className="flex items-center gap-1.5 rounded-lg bg-white/15 px-2.5 py-1.5">
           <Users className="h-3 w-3 text-white/80" />
           <span className="text-xs font-medium text-white/90">
-            {employeeCount} {employeeCount === 1 ? 'employee' : 'employees'}
+            {managerCount} {managerCount === 1 ? 'manager' : 'managers'} &middot; {totalCount} {totalCount === 1 ? 'member' : 'members'}
           </span>
         </div>
       </button>

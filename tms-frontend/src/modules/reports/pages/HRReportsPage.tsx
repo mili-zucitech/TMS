@@ -8,24 +8,82 @@ import {
   TrendingUp,
   UserCheck,
   Activity,
+  Zap,
+  ShieldCheck,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
+import { cn } from '@/utils/cn'
 import { ReportCard } from '../components/ReportCard'
 import { ReportFilters } from '../components/ReportFilters'
 import { ReportTable, statusBadge, type Column } from '../components/ReportTable'
 import { ReportBarChart, ReportPieChart, ReportLineChart } from '../components/ReportCharts'
 import { TrendInsights } from '../components/TrendInsights'
-import { ExportButtons } from '../components/ExportButtons'
+import { ExportButtons, type ExportColumn, type ExportSection, type ExportChartData } from '../components/ExportButtons'
 import { useHRReports } from '../hooks/useReports'
-import type { LeaveReportEntry, DepartmentProductivityEntry, EmployeeHoursEntry } from '../types/report.types'
+import type {
+  LeaveReportEntry,
+  DepartmentProductivityEntry,
+  EmployeeHoursEntry,
+  OvertimeSummaryEntry,
+  TimesheetComplianceEntry,
+} from '../types/report.types'
+
+// ── Export column definitions ────────────────────────────────────────────────
+const workHoursExportCols: ExportColumn[] = [
+  { key: 'employeeName',  label: 'Employee' },
+  { key: 'department',    label: 'Department' },
+  { key: 'weekStartDate', label: 'Week Start Date' },
+  { key: 'totalHours',    label: 'Total Hours (h)' },
+]
+
+const leaveExportCols: ExportColumn[] = [
+  { key: 'employeeName', label: 'Employee' },
+  { key: 'department',   label: 'Department' },
+  { key: 'leaveType',    label: 'Leave Type' },
+  { key: 'startDate',    label: 'Start Date' },
+  { key: 'endDate',      label: 'End Date' },
+  { key: 'totalDays',    label: 'Total Days' },
+  { key: 'status',       label: 'Status' },
+]
+
+const deptExportCols: ExportColumn[] = [
+  { key: 'departmentName',      label: 'Department' },
+  { key: 'employeeCount',       label: 'Employees' },
+  { key: 'totalHours',          label: 'Total Hours (h)' },
+  { key: 'avgHoursPerEmployee', label: 'Avg Hours / Employee' },
+  { key: 'utilizationPercent',  label: 'Utilization %' },
+]
+
+const overtimeExportCols: ExportColumn[] = [
+  { key: 'employeeName',   label: 'Employee' },
+  { key: 'department',     label: 'Department' },
+  { key: 'weekStartDate',  label: 'Week' },
+  { key: 'totalHours',     label: 'Total Hours (h)' },
+  { key: 'overtimeHours',  label: 'Overtime Hours (h)' },
+  { key: 'overtimeReason', label: 'Reason' },
+]
+
+const complianceExportCols: ExportColumn[] = [
+  { key: 'employeeName',     label: 'Employee' },
+  { key: 'department',       label: 'Department' },
+  { key: 'totalTimesheets',  label: 'Total Timesheets' },
+  { key: 'submitted',        label: 'Submitted' },
+  { key: 'approved',         label: 'Approved' },
+  { key: 'rejected',         label: 'Rejected' },
+  { key: 'draft',            label: 'Draft' },
+  { key: 'compliancePercent',label: 'Compliance %' },
+]
 
 // ── Tab definitions ───────────────────────────────────────────────────────────
 const TABS = [
-  { id: 'overview',      label: 'Overview' },
-  { id: 'work-hours',    label: 'Work Hours' },
-  { id: 'leave',         label: 'Leave Analytics' },
-  { id: 'departments',   label: 'Departments' },
+  { id: 'overview',    label: 'Overview' },
+  { id: 'work-hours',  label: 'Work Hours' },
+  { id: 'leave',       label: 'Leave Analytics' },
+  { id: 'departments', label: 'Departments' },
+  { id: 'overtime',    label: 'Overtime Analysis' },
+  { id: 'compliance',  label: 'Timesheet Compliance' },
 ] as const
 
 type TabId = (typeof TABS)[number]['id']
@@ -34,6 +92,7 @@ type TabId = (typeof TABS)[number]['id']
 const workHoursCols: Column<EmployeeHoursEntry>[] = [
   { key: 'employeeName', header: 'Employee',   sortable: true },
   { key: 'department',   header: 'Department', sortable: true },
+  { key: 'weekStartDate',header: 'Week Of',    sortable: true },
   { key: 'totalHours',   header: 'Total Hours',  sortable: true, align: 'right',
     render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
 ]
@@ -72,7 +131,31 @@ const deptCols: Column<DepartmentProductivityEntry>[] = [
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function HRReportsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const { hours, leave, dept, isLoading, error, applyFilters, refresh } = useHRReports()
+  const { hours, leave, dept, overtime, compliance, isLoading, error, applyFilters, refresh } = useHRReports()
+
+  const exportData = useMemo(() => {
+    if (activeTab === 'leave')       return leave.data?.entries ?? []
+    if (activeTab === 'departments') return dept.data ?? []
+    if (activeTab === 'overtime')    return overtime.data?.entries ?? []
+    if (activeTab === 'compliance')  return compliance.data?.entries ?? []
+    return hours.data?.entries ?? []
+  }, [activeTab, hours.data, leave.data, dept.data, overtime.data, compliance.data])
+
+  const exportColumns = useMemo(() => {
+    if (activeTab === 'leave')       return leaveExportCols
+    if (activeTab === 'departments') return deptExportCols
+    if (activeTab === 'overtime')    return overtimeExportCols
+    if (activeTab === 'compliance')  return complianceExportCols
+    return workHoursExportCols
+  }, [activeTab])
+
+  const exportReportTitle = useMemo(() => {
+    if (activeTab === 'leave')       return 'HR Leave Report'
+    if (activeTab === 'departments') return 'HR Department Productivity Report'
+    if (activeTab === 'overtime')    return 'HR Overtime Analysis Report'
+    if (activeTab === 'compliance')  return 'HR Timesheet Compliance Report'
+    return 'HR Work Hours Report'
+  }, [activeTab])
 
   // ── Chart data derivations ────────────────────────────────────────────────
   const empPerDeptPie = useMemo(() => {
@@ -149,15 +232,7 @@ export default function HRReportsPage() {
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
-          <ExportButtons
-            data={
-              activeTab === 'work-hours' ? (hours.data?.entries ?? []) :
-              activeTab === 'leave'      ? (leave.data?.entries ?? []) :
-              activeTab === 'departments'? (dept.data ?? []) :
-              (hours.data?.entries ?? [])
-            }
-            filename={`hr-report-${activeTab}`}
-          />
+          <ExportButtons sections={allSections} filename="hr-full-report" reportTitle="HR Full Report" />
         </div>
       </div>
 
@@ -454,6 +529,171 @@ export default function HRReportsPage() {
                 searchable
                 searchKeys={['departmentName']}
                 emptyMessage="No department data available"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+      {/* ── Overtime Analysis tab ───────────────────────────────────────── */}
+      {!isLoading && activeTab === 'overtime' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <ReportCard
+              title="Employees w/ Overtime"
+              value={overtime.data?.affectedEmployees ?? '—'}
+              icon={Zap}
+              iconColor="from-amber-500 to-orange-500"
+            />
+            <ReportCard
+              title="Total Overtime Weeks"
+              value={overtime.data?.totalOvertimeWeeks ?? '—'}
+              icon={Clock}
+              iconColor="from-red-500 to-rose-600"
+            />
+            <ReportCard
+              title="Total Overtime Hours"
+              value={overtime.data ? `${overtime.data.totalOvertimeHours.toFixed(0)}h` : '—'}
+              icon={TrendingUp}
+              iconColor="from-violet-500 to-purple-600"
+            />
+          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Top Overtime Employees
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportBarChart
+                data={(() => {
+                  const map = new Map<string, number>()
+                  for (const e of overtime.data?.entries ?? []) {
+                    map.set(e.employeeName, (map.get(e.employeeName) ?? 0) + e.overtimeHours)
+                  }
+                  return Array.from(map.entries())
+                    .sort((a, b) => b[1] - a[1]).slice(0, 15)
+                    .map(([name, value]) => ({ name, value }))
+                })()}
+                bars={[{ key: 'value', label: 'Overtime Hours (h)', color: '#f59e0b' }]}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-500" />
+                Overtime Detail
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportTable<OvertimeSummaryEntry>
+                data={overtime.data?.entries ?? []}
+                columns={[
+                  { key: 'employeeName',   header: 'Employee',     sortable: true },
+                  { key: 'department',     header: 'Department',   sortable: true },
+                  { key: 'weekStartDate',  header: 'Week',         sortable: true },
+                  { key: 'totalHours',     header: 'Total (h)',    align: 'right', sortable: true,
+                    render: (v) => <span className="font-mono font-medium">{Number(v).toFixed(1)}</span> },
+                  { key: 'overtimeHours',  header: 'Overtime (h)', align: 'right', sortable: true,
+                    render: (v) => <span className="font-mono text-red-600 dark:text-red-400 font-semibold">{Number(v).toFixed(1)}</span> },
+                  { key: 'overtimeReason', header: 'Reason',
+                    render: (v) => <span className="text-muted-foreground text-sm">{String(v ?? '—')}</span> },
+                ]}
+                searchable
+                searchKeys={['employeeName', 'department']}
+                emptyMessage="No overtime found for the selected period"
+              />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── Timesheet Compliance tab ──────────────────────────────────── */}
+      {!isLoading && activeTab === 'compliance' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <ReportCard
+              title="Overall Compliance"
+              value={compliance.data ? `${compliance.data.overallCompliancePercent.toFixed(1)}%` : '—'}
+              icon={ShieldCheck}
+              iconColor="from-emerald-500 to-teal-600"
+            />
+            <ReportCard
+              title="Total Timesheets"
+              value={compliance.data?.totalTimesheets ?? '—'}
+              icon={Clock}
+              iconColor="from-blue-500 to-indigo-600"
+            />
+            <ReportCard
+              title="Total Approved"
+              value={compliance.data?.totalApproved ?? '—'}
+              icon={UserCheck}
+              iconColor="from-violet-500 to-purple-600"
+            />
+            <ReportCard
+              title="Total Rejected"
+              value={compliance.data?.totalRejected ?? '—'}
+              icon={CalendarOff}
+              iconColor="from-red-500 to-rose-600"
+            />
+          </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                Compliance by Department
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportBarChart
+                data={(() => {
+                  const map = new Map<string, { total: number; approved: number }>()
+                  for (const e of compliance.data?.entries ?? []) {
+                    const prev = map.get(e.department) ?? { total: 0, approved: 0 }
+                    map.set(e.department, { total: prev.total + e.totalTimesheets, approved: prev.approved + e.approved })
+                  }
+                  return Array.from(map.entries()).map(([name, v]) => ({
+                    name,
+                    value: v.total > 0 ? Math.round((v.approved / v.total) * 100) : 0,
+                  }))
+                })()}
+                bars={[{ key: 'value', label: 'Compliance %', color: '#10b981' }]}
+              />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-semibold flex items-center gap-2">
+                <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                Employee Compliance Detail
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ReportTable<TimesheetComplianceEntry>
+                data={compliance.data?.entries ?? []}
+                columns={[
+                  { key: 'employeeName',     header: 'Employee',    sortable: true },
+                  { key: 'department',       header: 'Department',  sortable: true },
+                  { key: 'totalTimesheets',  header: 'Total',       align: 'right', sortable: true },
+                  { key: 'submitted',        header: 'Submitted',   align: 'right' },
+                  { key: 'approved',         header: 'Approved',    align: 'right',
+                    render: (v) => <span className="text-emerald-600 dark:text-emerald-400 font-medium">{String(v)}</span> },
+                  { key: 'rejected',         header: 'Rejected',    align: 'right',
+                    render: (v) => <span className="text-red-600 dark:text-red-400">{String(v)}</span> },
+                  { key: 'compliancePercent',header: 'Compliance',  align: 'right', sortable: true,
+                    render: (v) => {
+                      const pct = Number(v)
+                      return (
+                        <Badge variant={pct >= 80 ? 'success' : pct >= 50 ? 'warning' : 'destructive'} className="font-mono">
+                          {pct.toFixed(0)}%
+                        </Badge>
+                      )
+                    } },
+                ]}
+                searchable
+                searchKeys={['employeeName', 'department']}
+                emptyMessage="No compliance data for the selected period"
               />
             </CardContent>
           </Card>

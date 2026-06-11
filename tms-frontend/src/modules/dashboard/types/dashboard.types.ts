@@ -22,6 +22,7 @@ export interface TimesheetResponse {
   rejectionReason: string | null
   createdAt: string
   updatedAt: string
+  totalMinutes: number
 }
 
 export interface TimeEntryResponse {

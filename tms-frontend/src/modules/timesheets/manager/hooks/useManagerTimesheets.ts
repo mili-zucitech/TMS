@@ -66,7 +66,7 @@ export function useManagerDashboard() {
       .map((ts) => {
         const employee = userMap.get(ts.userId)
         if (!employee) return null
-        return { timesheet: ts, employee, totalMinutes: 0 } satisfies ManagerTimesheetRow
+        return { timesheet: ts, employee, totalMinutes: ts.totalMinutes ?? 0 } satisfies ManagerTimesheetRow
       })
       .filter((r): r is ManagerTimesheetRow => r !== null)
   }, [teamTimesheets, userMap])

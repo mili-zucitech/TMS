@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Activity,
   BarChart2,
+  Clock,
 } from 'lucide-react'
 import {
   BarChart,
@@ -22,13 +23,13 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
   LineChart,
   Line,
 } from 'recharts'
 
 import { useAuth } from '@/context/AuthContext'
 import { useGetUserByIdQuery } from '@/features/users/usersApi'
+import { useGetProjectUtilizationReportQuery } from '@/features/reports/reportsApi'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import {
@@ -40,6 +41,7 @@ import {
 } from '../components/DashboardComponents'
 import { useHRDashboard } from '../hooks/useDashboard'
 import type { AuditLogResponse } from '../types/dashboard.types'
+import { cn } from '@/utils/cn'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -119,6 +121,19 @@ export function HRDashboardPage() {
   const activeProjects = allProjects.filter((p) => p.status === 'ACTIVE')
   const completedProjects = allProjects.filter((p) => p.status === 'COMPLETED')
 
+  const { data: projectUtilReport } = useGetProjectUtilizationReportQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  })
+
+  // Project utilization: top projects sorted by loggedHours for bar chart, and map for cards
+  const projectUtilBar = useMemo(() => {
+    if (!projectUtilReport?.entries?.length) return []
+    return [...projectUtilReport.entries]
+      .sort((a, b) => b.loggedHours - a.loggedHours)
+      .slice(0, 8)
+      .map((e) => ({ name: e.projectName, utilization: e.utilizationPercent ?? 0, logged: e.loggedHours }))
+  }, [projectUtilReport])
+
   // Employees per department
   const deptDistribution = useMemo(() => {
     const map = new Map<string, number>()
@@ -133,16 +148,6 @@ export function HRDashboardPage() {
       .sort((a, b) => b.count - a.count)
       .slice(0, 8)
   }, [allUsers, departments])
-
-  // Project status distribution for pie
-  const projectStatusData = useMemo(() => {
-    const buckets: Record<string, number> = {}
-    allProjects.forEach((p) => {
-      const label = p.status.replace('_', ' ')
-      buckets[label] = (buckets[label] ?? 0) + 1
-    })
-    return Object.entries(buckets).map(([name, value]) => ({ name, value }))
-  }, [allProjects])
 
   // Role distribution
   const roleDistribution = useMemo(() => {
@@ -169,6 +174,19 @@ export function HRDashboardPage() {
     })
     return Object.entries(months).map(([month, newHires]) => ({ month, newHires }))
   }, [allUsers])
+
+  const utilSummaryStats = useMemo(() => {
+    const entries = projectUtilReport?.entries ?? []
+    const totalLogged = projectUtilReport?.totalLoggedHours ?? 0
+    const totalBillable = entries.reduce((sum, e) => sum + (e.billableHours ?? 0), 0)
+    const billableRatio = totalLogged > 0 ? (totalBillable / totalLogged) * 100 : 0
+    return {
+      totalProjects: entries.length,
+      totalLoggedHours: totalLogged,
+      avgUtilization: projectUtilReport?.avgUtilizationPercent ?? 0,
+      billableRatio,
+    }
+  }, [projectUtilReport])
 
   if (error) {
     return (
@@ -271,32 +289,41 @@ export function HRDashboardPage() {
           )}
         </ChartCard>
 
-        {/* Project utilization pie */}
+        {/* Project utilization bar chart */}
         <ChartCard
           title="Project Utilization"
-          description="By status"
+          description="Hours logged vs estimated (top 8)"
           icon={FolderKanban}
           isLoading={isLoading}
           height={260}
         >
-          {projectStatusData.length === 0 ? (
-            <EmptyState icon={FolderKanban} title="No project data" />
+          {projectUtilBar.length === 0 ? (
+            <EmptyState icon={FolderKanban} title="No utilization data" description="Add estimated hours to tasks for utilization tracking" />
           ) : (
             <ResponsiveContainer width="100%" height={260}>
-              <PieChart>
-                <Pie
-                  data={projectStatusData}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={55}
-                  outerRadius={85}
-                  paddingAngle={3}
-                  dataKey="value"
-                >
-                  {projectStatusData.map((_, idx) => (
-                    <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
-                  ))}
-                </Pie>
+              <BarChart
+                data={projectUtilBar}
+                layout="vertical"
+                barSize={14}
+                margin={{ top: 0, right: 40, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="var(--border)" />
+                <XAxis
+                  type="number"
+                  domain={[0, 'dataMax']}
+                  tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => `${v}h`}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={100}
+                  tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
+                  axisLine={false}
+                  tickLine={false}
+                />
                 <Tooltip
                   contentStyle={{
                     fontSize: 12,
@@ -305,9 +332,19 @@ export function HRDashboardPage() {
                     background: 'var(--card)',
                     color: 'var(--card-foreground)',
                   }}
+                  formatter={(value: number, name: string) =>
+                    name === 'logged' ? [`${value.toFixed(1)}h`, 'Hours Logged'] : [`${value.toFixed(0)}%`, 'Utilization']
+                  }
                 />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
-              </PieChart>
+                <Bar dataKey="logged" radius={[0, 4, 4, 0]}>
+                  {projectUtilBar.map((entry) => (
+                    <Cell
+                      key={entry.name}
+                      fill={entry.utilization > 100 ? '#ef4444' : entry.utilization >= 80 ? '#f59e0b' : '#10b981'}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           )}
         </ChartCard>
@@ -375,7 +412,7 @@ export function HRDashboardPage() {
                 <Pie
                   data={roleDistribution}
                   cx="50%"
-                  cy="45%"
+                  cy="50%"
                   outerRadius={80}
                   paddingAngle={3}
                   dataKey="value"
@@ -478,9 +515,9 @@ export function HRDashboardPage() {
         </DashboardCard>
       </div>
 
-      {/* ── Project cards ── */}
+      {/* ── Project utilization progress bars ── */}
       <DashboardCard
-        title="Active Projects"
+        title="Project Utilization"
         icon={FolderKanban}
         isLoading={isLoading}
         action={
@@ -489,30 +526,87 @@ export function HRDashboardPage() {
           </Button>
         }
       >
-        {activeProjects.length === 0 ? (
+        {!projectUtilReport?.entries?.length ? (
           <EmptyState icon={FolderKanban} title="No active projects" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {activeProjects.slice(0, 6).map((p) => {
-              const dept = departments.find((d) => d.id === p.departmentId)
-              return (
-                <div
-                  key={p.id}
-                  className="p-4 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors space-y-2"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold truncate">{p.name}</p>
-                    <Badge variant="success" className="text-[10px] shrink-0">Active</Badge>
-                  </div>
-                  {p.clientName && (
-                    <p className="text-xs text-muted-foreground">{p.clientName}</p>
-                  )}
-                  {dept && (
-                    <p className="text-xs text-muted-foreground/70">{dept.name}</p>
-                  )}
+          <div className="space-y-4">
+            {/* ── Aggregate summary cards ── */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-muted/30">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-blue-500/10">
+                  <FolderKanban className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
-              )
-            })}
+                <div className="min-w-0">
+                  <p className="text-lg font-bold tabular-nums leading-none">{utilSummaryStats.totalProjects}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Total Projects</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-muted/30">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-violet-500/10">
+                  <Clock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold tabular-nums leading-none">{utilSummaryStats.totalLoggedHours.toFixed(0)}h</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Hours Logged</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-muted/30">
+                <div className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-md',
+                  utilSummaryStats.avgUtilization >= 100 ? 'bg-red-500/10' :
+                  utilSummaryStats.avgUtilization >= 80  ? 'bg-amber-500/10' : 'bg-emerald-500/10'
+                )}>
+                  <TrendingUp className={cn('h-4 w-4',
+                    utilSummaryStats.avgUtilization >= 100 ? 'text-red-500' :
+                    utilSummaryStats.avgUtilization >= 80  ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                  )} />
+                </div>
+                <div className="min-w-0">
+                  <p className={cn('text-lg font-bold tabular-nums leading-none',
+                    utilSummaryStats.avgUtilization >= 100 ? 'text-red-500' :
+                    utilSummaryStats.avgUtilization >= 80  ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'
+                  )}>{utilSummaryStats.avgUtilization.toFixed(0)}%</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Avg Utilization</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/60 bg-muted/30">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-teal-500/10">
+                  <UserCheck className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold tabular-nums leading-none">{utilSummaryStats.billableRatio.toFixed(0)}%</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Billable Ratio</p>
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[...projectUtilReport.entries]
+              .sort((a, b) => (b.utilizationPercent ?? 0) - (a.utilizationPercent ?? 0))
+              .slice(0, 8)
+              .map((entry) => {
+                const pct = Math.min(entry.utilizationPercent ?? 0, 100)
+                const barColor = pct > 100 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                const textColor = pct > 100 ? 'text-red-500' : pct >= 80 ? 'text-amber-500' : 'text-emerald-500'
+                return (
+                  <div key={entry.projectId} className="space-y-1.5 p-3 rounded-lg border border-border/60">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium truncate">{entry.projectName}</span>
+                      <span className={cn(`text-xs font-semibold tabular-nums shrink-0`, textColor)}>
+                        {(entry.utilizationPercent ?? 0).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="h-2 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all ${barColor}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {entry.activeEmployees} member{entry.activeEmployees !== 1 ? 's' : ''} · {entry.loggedHours.toFixed(0)}h logged
+                    </p>
+                  </div>
+                )
+              })}
+          </div>
           </div>
         )}
       </DashboardCard>

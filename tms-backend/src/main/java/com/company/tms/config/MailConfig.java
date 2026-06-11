@@ -41,20 +41,15 @@ public class MailConfig {
         log.info("=========================");
 
         if (!StringUtils.hasText(username)) {
-            throw new IllegalStateException(
-                    "Mail configuration error: MAIL_USERNAME environment variable is not set or is empty. "
-                    + "Set it to the Gmail address used for sending emails."
-            );
+            log.warn("⚠ Mail configuration warning: SPRING_MAIL_USERNAME is not set. "
+                    + "Email sending will be disabled until configured.");
+            return;
         }
 
         if (!StringUtils.hasText(password)) {
-            throw new IllegalStateException(
-                    "Mail configuration error: MAIL_PASSWORD environment variable is not set or is empty. "
-                    + "For Gmail, generate a 16-character App Password at: "
-                    + "https://myaccount.google.com/apppasswords "
-                    + "(Google Account → Security → 2-Step Verification → App Passwords). "
-                    + "Do NOT use your regular Gmail account password."
-            );
+            log.warn("⚠ Mail configuration warning: SPRING_MAIL_PASSWORD is not set. "
+                    + "Email sending will be disabled until configured.");
+            return;
         }
 
         log.info("Mail configuration validated OK — SMTP credentials are present.");

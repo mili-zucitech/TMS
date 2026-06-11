@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CalendarDays,
+  TrendingUp,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
@@ -110,9 +111,11 @@ interface ActionCellProps {
   project: ProjectResponse
   canModify: boolean
   canArchive: boolean
+  canViewUtilization: boolean
   onEdit: (project: ProjectResponse) => void
   onArchive: (project: ProjectResponse) => void
   onView: (project: ProjectResponse) => void
+  onViewUtilization: (project: ProjectResponse) => void
   compact?: boolean
 }
 
@@ -120,9 +123,11 @@ function ActionCell({
   project,
   canModify,
   canArchive,
+  canViewUtilization,
   onEdit,
   onArchive,
   onView,
+  onViewUtilization,
   compact,
 }: ActionCellProps) {
   const isArchived =
@@ -141,6 +146,17 @@ function ActionCell({
       >
         <Eye className="h-4 w-4" />
       </Button>
+      {canViewUtilization && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-muted-foreground hover:text-emerald-600"
+          onClick={() => onViewUtilization(project)}
+          title="View utilization"
+        >
+          <TrendingUp className="h-4 w-4" />
+        </Button>
+      )}
       {canModify && (
         <Button
           variant="ghost"
@@ -174,6 +190,7 @@ interface ProjectTableProps {
   isLoading: boolean
   canModify: boolean
   canArchive: boolean
+  canViewUtilization: boolean
   onEditProject: (project: ProjectResponse) => void
   onArchiveProject: (project: ProjectResponse) => void
 }
@@ -189,6 +206,7 @@ export function ProjectTable({
   isLoading,
   canModify,
   canArchive,
+  canViewUtilization,
   onEditProject,
   onArchiveProject,
 }: ProjectTableProps) {
@@ -197,6 +215,10 @@ export function ProjectTable({
 
   const handleViewProject = (project: ProjectResponse) => {
     navigate(`/projects/${project.id}`)
+  }
+
+  const handleViewUtilization = (project: ProjectResponse) => {
+    navigate(`/projects/${project.id}/utilization`)
   }
 
   const columns = useMemo(
@@ -264,15 +286,17 @@ export function ProjectTable({
             project={row.original}
             canModify={canModify}
             canArchive={canArchive}
+            canViewUtilization={canViewUtilization}
             onView={handleViewProject}
             onEdit={onEditProject}
             onArchive={onArchiveProject}
+            onViewUtilization={handleViewUtilization}
           />
         ),
       }),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [canModify, canArchive, onEditProject, onArchiveProject],
+    [canModify, canArchive, canViewUtilization, onEditProject, onArchiveProject],
   )
 
   const table = useReactTable({
@@ -373,9 +397,11 @@ export function ProjectTable({
                       project={project}
                       canModify={canModify}
                       canArchive={canArchive}
+                      canViewUtilization={canViewUtilization}
                       onView={handleViewProject}
                       onEdit={onEditProject}
                       onArchive={onArchiveProject}
+                      onViewUtilization={handleViewUtilization}
                       compact
                     />
                   </div>

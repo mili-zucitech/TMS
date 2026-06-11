@@ -12,8 +12,11 @@ export interface TimesheetResponse {
   approvedAt: string | null
   approvedBy: string | null // UUID
   rejectionReason: string | null
+  overtimeReason: string | null
   createdAt: string
   updatedAt: string
+  /** Sum of durationMinutes across all time entries. Populated by the backend. */
+  totalMinutes: number
 }
 
 export interface TimesheetCreateRequest {
@@ -26,9 +29,19 @@ export interface TimesheetApproveRequest {
   approvedBy?: string  // UUID, optional
 }
 
+export interface TimesheetSubmitRequest {
+  overtimeReason?: string
+}
+
 export interface TimesheetRejectRequest {
   approvedBy?: string  // UUID, optional
   rejectionReason: string
+}
+
+export interface TimesheetFilterParams {
+  year?: number
+  month?: number   // 1 = January … 12 = December
+  week?: number    // ISO week number 1–53
 }
 
 // ── TimeEntry (individual log entry) ─────────────────────────────────────────

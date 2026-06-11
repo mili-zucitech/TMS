@@ -32,8 +32,7 @@ public class NotificationController {
     // -------------------------------------------------------------------------
 
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasRole('ADMIN') or #userId.toString() == authentication.name"
-            + " or @userAccessHelper.isSelf(#userId)")
+    @PreAuthorize("hasRole('ADMIN') or @userAccessHelper.isSelf(#userId)")
     public ResponseEntity<ApiResponse<List<NotificationResponse>>> getUserNotifications(
             @PathVariable UUID userId) {
         return ResponseEntity.ok(ApiResponse.success(
@@ -53,9 +52,11 @@ public class NotificationController {
 
     @PutMapping("/{id}/read")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<NotificationResponse>> markAsRead(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<NotificationResponse>> markAsRead(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails currentUser) {
         return ResponseEntity.ok(ApiResponse.success(
-                notificationService.markNotificationAsRead(id)));
+                notificationService.markNotificationAsRead(id, currentUser.getUsername())));
     }
 
     /**

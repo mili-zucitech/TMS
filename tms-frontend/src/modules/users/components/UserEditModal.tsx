@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Pencil } from 'lucide-react'
@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import type { UserResponse, UserUpdateRequest } from '../types/user.types'
 
@@ -51,10 +52,6 @@ interface UserEditModalProps {
 
 const fieldClass = 'space-y-1.5'
 const errorClass = 'text-xs text-destructive mt-1'
-const selectClass =
-  'flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors disabled:opacity-50'
 
 // ── Component ─────────────────────────────────────────────────
 export function UserEditModal({ open, onOpenChange, user, onSubmit, departments = [], users = [] }: UserEditModalProps) {
@@ -62,6 +59,7 @@ export function UserEditModal({ open, onOpenChange, user, onSubmit, departments 
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -140,52 +138,76 @@ export function UserEditModal({ open, onOpenChange, user, onSubmit, departments 
             {/* Role */}
             <div className={fieldClass}>
               <Label htmlFor="edit-roleName">Role</Label>
-              <select
-                id="edit-roleName"
-                className={selectClass}
-                {...register('roleName')}
-              >
-                <option value="">No change</option>
-                <option value="ADMIN">Admin</option>
-                <option value="HR">HR</option>
-                <option value="HR_MANAGER">HR Manager</option>
-                <option value="MANAGER">Manager</option>
-                <option value="DIRECTOR">Director</option>
-                <option value="EMPLOYEE">Employee</option>
-              </select>
+              <Controller
+                name="roleName"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-roleName"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: 'No change' },
+                      { value: 'ADMIN', label: 'Admin' },
+                      { value: 'HR', label: 'HR' },
+                      { value: 'HR_MANAGER', label: 'HR Manager' },
+                      { value: 'MANAGER', label: 'Manager' },
+                      { value: 'DIRECTOR', label: 'Director' },
+                      { value: 'EMPLOYEE', label: 'Employee' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Status */}
             <div className={fieldClass}>
               <Label htmlFor="edit-status">Status</Label>
-              <select
-                id="edit-status"
-                className={selectClass}
-                {...register('status')}
-              >
-                <option value="">No change</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-                <option value="ON_LEAVE">On Leave</option>
-                <option value="SUSPENDED">Suspended</option>
-                <option value="TERMINATED">Terminated</option>
-              </select>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-status"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: 'No change' },
+                      { value: 'ACTIVE', label: 'Active' },
+                      { value: 'INACTIVE', label: 'Inactive' },
+                      { value: 'ON_LEAVE', label: 'On Leave' },
+                      { value: 'SUSPENDED', label: 'Suspended' },
+                      { value: 'TERMINATED', label: 'Terminated' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Employment Type */}
             <div className={fieldClass}>
               <Label htmlFor="edit-employmentType">Employment Type</Label>
-              <select
-                id="edit-employmentType"
-                className={selectClass}
-                {...register('employmentType')}
-              >
-                <option value="">No change</option>
-                <option value="FULL_TIME">Full Time</option>
-                <option value="PART_TIME">Part Time</option>
-                <option value="CONTRACT">Contract</option>
-                <option value="INTERN">Intern</option>
-              </select>
+              <Controller
+                name="employmentType"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-employmentType"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: 'No change' },
+                      { value: 'FULL_TIME', label: 'Full Time' },
+                      { value: 'PART_TIME', label: 'Part Time' },
+                      { value: 'CONTRACT', label: 'Contract' },
+                      { value: 'INTERN', label: 'Intern' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Designation */}
@@ -211,16 +233,21 @@ export function UserEditModal({ open, onOpenChange, user, onSubmit, departments 
             {/* Department */}
             <div className={fieldClass}>
               <Label htmlFor="edit-departmentId">Department</Label>
-              <select
-                id="edit-departmentId"
-                className={selectClass}
-                {...register('departmentId')}
-              >
-                <option value="">— Select department —</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+              <Controller
+                name="departmentId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-departmentId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    options={[
+                      { value: '', label: '— Select department —' },
+                      ...departments.map((d) => ({ value: d.id, label: d.name })),
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Joining Date */}
@@ -232,18 +259,23 @@ export function UserEditModal({ open, onOpenChange, user, onSubmit, departments 
             {/* Reporting Manager */}
             <div className={cn(fieldClass, 'sm:col-span-2')}>
               <Label htmlFor="edit-managerId">Reporting Manager</Label>
-              <select
-                id="edit-managerId"
-                className={selectClass}
-                {...register('managerId')}
-              >
-                <option value="">— Select manager —</option>
-                {users
-                  .filter((u) => u.id !== user?.id && (u.roleName === 'MANAGER' || u.roleName === 'HR_MANAGER' || u.roleName === 'DIRECTOR' || u.roleName === 'ADMIN' || u.roleName === 'HR'))
-                  .map((u) => (
-                    <option key={u.id} value={u.id}>{u.name} ({u.employeeId})</option>
-                  ))}
-              </select>
+              <Controller
+                name="managerId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-managerId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    options={[
+                      { value: '', label: '— Select manager —' },
+                      ...users
+                        .filter((u) => u.id !== user?.id && (u.roleName === 'MANAGER' || u.roleName === 'HR_MANAGER' || u.roleName === 'DIRECTOR' || u.roleName === 'ADMIN' || u.roleName === 'HR'))
+                        .map((u) => ({ value: u.id, label: `${u.name} (${u.employeeId})` })),
+                    ]}
+                  />
+                )}
+              />
             </div>
           </div>
 

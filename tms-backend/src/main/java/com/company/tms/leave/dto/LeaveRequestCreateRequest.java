@@ -1,6 +1,7 @@
 package com.company.tms.leave.dto;
 
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.time.LocalDate;
@@ -25,5 +26,6 @@ public class LeaveRequestCreateRequest {
     @NotNull(message = "End date is required")
     private LocalDate endDate;
 
+    @Size(max = 1000, message = "Reason must not exceed 1000 characters")
     private String reason;
 }

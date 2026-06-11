@@ -138,7 +138,7 @@ public class TaskController {
      * Updates only the status of a task. ADMIN, MANAGER, and the assigned EMPLOYEE can update status.
      */
     @PatchMapping("/{id}/status")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR', 'EMPLOYEE')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR') or @taskService.isAssignedUser(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TaskResponse>> updateTaskStatus(
             @PathVariable Long id,
             @Valid @RequestBody TaskStatusUpdateRequest request) {

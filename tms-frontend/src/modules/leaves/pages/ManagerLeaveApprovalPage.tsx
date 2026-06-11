@@ -216,16 +216,17 @@ export function ManagerLeaveApprovalPage() {
         {/* â”€â”€ Desktop table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
         {!isLoading && (
           <div className="hidden sm:block rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Employee</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Leave Type</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">Period</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Days</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground hidden lg:table-cell">Reason</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground">Actions</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Employee</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Leave Type</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Period</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">Days</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap">Reason</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold text-muted-foreground whitespace-nowrap">Status</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -251,7 +252,7 @@ export function ManagerLeaveApprovalPage() {
                             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-600 text-[11px] font-bold text-white select-none">
                               {initials}
                             </div>
-                            <span className="font-medium truncate max-w-[140px]">
+                            <span className="font-medium">
                               {l.employeeName ?? l.userId.slice(0, 8)}
                             </span>
                           </div>
@@ -272,7 +273,7 @@ export function ManagerLeaveApprovalPage() {
                           </span>
                         </td>
                         {/* Reason */}
-                        <td className="px-4 py-3 hidden lg:table-cell">
+                        <td className="px-4 py-3">
                           <span className="text-xs text-muted-foreground max-w-[180px] line-clamp-1 block">
                             {l.reason ?? <span className="italic">No reason provided</span>}
                           </span>
@@ -331,6 +332,7 @@ export function ManagerLeaveApprovalPage() {
                 )}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

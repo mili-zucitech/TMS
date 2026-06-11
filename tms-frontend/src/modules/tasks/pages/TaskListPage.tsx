@@ -303,6 +303,8 @@ export default function TaskListPage() {
             userNames={userNames}
             onEditTask={setEditTask}
             onDeleteTask={setDeleteTarget}
+            showAssignedTo={authUser?.roleName !== 'EMPLOYEE'}
+            showCreatedBy={authUser?.roleName === 'EMPLOYEE' || authUser?.roleName === 'ADMIN'}
           />
         ) : (
           <TaskKanbanBoard

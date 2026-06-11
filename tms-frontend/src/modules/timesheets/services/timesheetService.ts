@@ -5,6 +5,7 @@ import type {
   TimesheetCreateRequest,
   TimesheetApproveRequest,
   TimesheetRejectRequest,
+  TimesheetSubmitRequest,
   TimeEntryResponse,
   TimeEntryCreateRequest,
   TimeEntryUpdateRequest,
@@ -39,9 +40,10 @@ const timesheetService = {
     return data.data
   },
 
-  async submitTimesheet(id: number): Promise<TimesheetResponse> {
+  async submitTimesheet(id: number, payload?: TimesheetSubmitRequest): Promise<TimesheetResponse> {
     const { data } = await axiosClient.post<ApiResponse<TimesheetResponse>>(
       `${TIMESHEET_BASE}/${id}/submit`,
+      payload ?? {},
     )
     return data.data
   },

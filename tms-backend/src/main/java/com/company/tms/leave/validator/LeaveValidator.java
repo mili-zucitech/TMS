@@ -15,8 +15,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 
 @Slf4j
@@ -42,6 +42,9 @@ public class LeaveValidator {
      * Validates that endDate is on or after startDate.
      */
     public void validateDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate.isBefore(LocalDate.now())) {
+            throw new ValidationException("Leave start date cannot be in the past.");
+        }
         if (endDate.isBefore(startDate)) {
             throw new ValidationException("End date must be on or after start date.");
         }
@@ -51,8 +54,7 @@ public class LeaveValidator {
      * Validates that the user has sufficient leave balance for the requested number of days.
      * Uses the current year.
      */
-    public void validateSufficientBalance(UUID userId, Long leaveTypeId, int requestedDays) {
-        int year = LocalDate.now().getYear();
+    public void validateSufficientBalance(UUID userId, Long leaveTypeId, int requestedDays, int year) {
         LeaveBalance balance = leaveBalanceRepository
                 .findByUserIdAndLeaveTypeIdAndYear(userId, leaveTypeId, year)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -115,8 +117,22 @@ public class LeaveValidator {
      * Calculates the total number of leave days (inclusive) between startDate and endDate.
      */
     public int calculateTotalDays(LocalDate startDate, LocalDate endDate) {
-        long holidayCount = holidayRepository.countByHolidayDateBetween(startDate, endDate);
-        return (int) ChronoUnit.DAYS.between(startDate, endDate) + 1 - (int) holidayCount;
+        int workingDays = 0;
+        LocalDate current = startDate;
+        while (!current.isAfter(endDate)) {
+            DayOfWeek dow = current.getDayOfWeek();
+            if (dow != DayOfWeek.SATURDAY && dow != DayOfWeek.SUNDAY) {
+                workingDays++;
+            }
+            current = current.plusDays(1);
+        }
+        // Only count holidays that fall on actual working days (not weekends)
+        long holidayCount = holidayRepository.findByHolidayDateBetween(startDate, endDate)
+                .stream()
+                .filter(h -> h.getHolidayDate().getDayOfWeek() != DayOfWeek.SATURDAY
+                          && h.getHolidayDate().getDayOfWeek() != DayOfWeek.SUNDAY)
+                .count();
+        return (int) Math.max(0, workingDays - holidayCount);
     }
 }
 

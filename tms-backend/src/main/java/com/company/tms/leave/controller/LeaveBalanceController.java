@@ -3,10 +3,13 @@ package com.company.tms.leave.controller;
 import com.company.tms.leave.dto.LeaveBalanceResponse;
 import com.company.tms.leave.service.LeaveBalanceService;
 import com.company.tms.util.ApiResponse;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -18,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
+@Validated
 @RestController
 @RequestMapping("/api/v1/leave-balances")
 @RequiredArgsConstructor
@@ -44,7 +48,7 @@ public class LeaveBalanceController {
     @PostMapping("/initialize/{year}")
     @PreAuthorize("hasAnyRole('ADMIN', 'HR')")
     public ResponseEntity<ApiResponse<Map<String, Object>>> initializeLeaveBalances(
-            @PathVariable int year) {
+            @PathVariable @Min(2000) @Max(2100) int year) {
         log.info("POST /api/v1/leave-balances/initialize/{}", year);
         int created = leaveBalanceService.initializeLeaveBalancesForYear(year);
         return ResponseEntity.ok(ApiResponse.success(

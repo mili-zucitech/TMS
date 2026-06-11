@@ -38,7 +38,7 @@ public class TimeEntryController {
 
     /** Updates an existing time entry. Full re-validation of overlap and daily limit. */
     @PutMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timeEntryService.isOwnerOfTimeEntry(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TimeEntryResponse>> updateTimeEntry(
             @PathVariable Long id,
             @Valid @RequestBody TimeEntryUpdateRequest request) {
@@ -49,7 +49,7 @@ public class TimeEntryController {
 
     /** Deletes a time entry. The parent timesheet must be editable. */
     @DeleteMapping("/{id}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timeEntryService.isOwnerOfTimeEntry(authentication.name, #id)")
     public ResponseEntity<ApiResponse<Void>> deleteTimeEntry(@PathVariable Long id) {
         log.debug("DELETE /api/v1/time-entries/{}", id);
         timeEntryService.deleteTimeEntry(id);
@@ -58,7 +58,7 @@ public class TimeEntryController {
 
     /** Returns all time entries belonging to a timesheet. */
     @GetMapping("/timesheet/{timesheetId}")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetService.isOwnerOfTimesheet(authentication.name, #timesheetId) or @timesheetService.isReportingManagerOfTimesheetOwner(authentication.name, #timesheetId)")
     public ResponseEntity<ApiResponse<List<TimeEntryResponse>>> getEntriesByTimesheet(
             @PathVariable Long timesheetId) {
         log.debug("GET /api/v1/time-entries/timesheet/{}", timesheetId);

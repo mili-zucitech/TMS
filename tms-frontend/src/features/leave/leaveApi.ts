@@ -40,6 +40,7 @@ export const leaveApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { managerId }) => [
         { type: 'Leave', id: `manager-${managerId}` },
         'Leave',
+        'LeaveBalance',
       ],
     }),
     rejectLeave: builder.mutation<LeaveRequestResponse, { id: number; body: LeaveRejectRequest; managerId: string }>({
@@ -51,6 +52,7 @@ export const leaveApi = baseApi.injectEndpoints({
       invalidatesTags: (_result, _error, { managerId }) => [
         { type: 'Leave', id: `manager-${managerId}` },
         'Leave',
+        'LeaveBalance',
       ],
     }),
     cancelLeave: builder.mutation<LeaveRequestResponse, { id: number; userId: string }>({

@@ -8,12 +8,13 @@ import {
 import { logout } from '@/features/auth/authSlice'
 import type { ApiResponse } from '@/types/api.types'
 import { config } from '@/config/env'
+import { isTokenExpired } from '@/utils/token'
 
 const rawBaseQuery = fetchBaseQuery({
   baseUrl: config.apiBaseUrl,
   prepareHeaders: (headers) => {
     const token = localStorage.getItem('tms_token')
-    if (token) {
+    if (token && !isTokenExpired(token)) {
       headers.set('Authorization', `Bearer ${token}`)
     }
     return headers

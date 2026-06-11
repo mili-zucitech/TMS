@@ -399,6 +399,17 @@ export default function TaskDetailsPage() {
                 />
                 <InfoRow label="Created" value={formatDateTime(task.createdAt)} />
                 <InfoRow label="Last Updated" value={formatDateTime(task.updatedAt)} />
+                {task.createdByUserName && (authUser?.roleName === 'EMPLOYEE' || authUser?.roleName === 'ADMIN') && (
+                  <InfoRow
+                    label="Created By"
+                    value={
+                      <span className="flex items-center gap-1">
+                        <User className="h-3 w-3 text-muted-foreground" />
+                        {task.createdByUserName}
+                      </span>
+                    }
+                  />
+                )}
               </div>
             </div>
           </div>

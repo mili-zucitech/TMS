@@ -1,18 +1,49 @@
-import { useMemo } from 'react'
-import { Clock, FolderOpen, CheckCircle2, CalendarX2, SunMedium } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Clock, FolderOpen, CheckCircle2, CalendarX2, SunMedium, Zap, ChevronDown, ChevronUp } from 'lucide-react'
 
 import { cn } from '@/utils/cn'
 import {
   formatShortDate,
   formatDuration,
   calcDurationMinutes,
-  stripSeconds,
+  format12h,
+  splitOvertimeEntries,
 } from '../utils/timesheetHelpers'
 import { TimesheetStatusBadge } from './TimesheetStatusBadge'
 import { StatCard } from '@/components/ui/StatCard'
 import type { TimesheetResponse, TimeEntryResponse } from '../types/timesheet.types'
 import type { LeaveRequestResponse } from '@/modules/leaves/types/leave.types'
 import type { HolidayResponse } from '@/modules/holidays/types/holiday.types'
+
+// ── Description expand/collapse cell ────────────────────────────────────────
+function DescriptionCell({ text, className }: { text: string | null; className?: string }) {
+  const [expanded, setExpanded] = useState(false)
+  if (!text) return <span className={className}>—</span>
+  if (text.length <= 55) return <span className={className}>{text}</span>
+  return expanded ? (
+    <span className={className}>
+      {text}{' '}
+      <button
+        type="button"
+        onClick={() => setExpanded(false)}
+        className="inline-flex items-center gap-0.5 text-primary/70 hover:text-primary text-xs underline underline-offset-2"
+      >
+        less <ChevronUp className="h-3 w-3" />
+      </button>
+    </span>
+  ) : (
+    <span className={className}>
+      {text.slice(0, 55)}&hellip;{' '}
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="inline-flex items-center gap-0.5 text-primary/70 hover:text-primary text-xs underline underline-offset-2"
+      >
+        more <ChevronDown className="h-3 w-3" />
+      </button>
+    </span>
+  )
+}
 
 type DayKind = 'work' | 'weekend' | 'holiday'
 
@@ -79,6 +110,9 @@ export function TimesheetDetailsView({
         sum + (e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime)),
       0,
     )
+
+  const dayOvertimeMinutes = (date: string) =>
+    Math.max(0, dayMinutes(date) - 480)
 
   return (
     <div className={cn('space-y-6', className)}>
@@ -151,6 +185,8 @@ export function TimesheetDetailsView({
                   ? 'bg-slate-500/[0.06] dark:bg-slate-800/30'
                   : isNonWorkDay && !hasEntries && dayKind === 'holiday'
                   ? 'bg-rose-500/[0.06] dark:bg-rose-900/20'
+                  : hasEntries
+                  ? 'bg-muted/50'
                   : 'bg-muted/30',
               )}
             >
@@ -195,75 +231,105 @@ export function TimesheetDetailsView({
                 <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                   <Clock className="h-3.5 w-3.5" />
                   {formatDuration(mins)}
+                  {dayOvertimeMinutes(date) > 0 && (
+                    <span className="ml-1.5 text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                      <Zap className="h-3 w-3" />
+                      {formatDuration(dayOvertimeMinutes(date))} OT
+                    </span>
+                  )}
                 </span>
               )}
             </div>
 
             {/* Entries */}
-            {hasEntries && (
-              <>
-                {/* Desktop table */}
-                <div className="hidden sm:block overflow-x-auto">
-                  <table className="w-full text-sm table-fixed">
-                    <colgroup>
-                      <col className="w-[18%]" />
-                      <col className="w-[15%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[10%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[35%]" />
-                    </colgroup>
-                    <thead>
-                      <tr className="border-b border-border/50 bg-muted/10">
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Project</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Task</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Start</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">End</th>
-                        <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground">Duration</th>
-                        <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {dayEntries.map((e) => (
-                        <tr key={e.id} className="border-b border-border/30 last:border-0">
-                          <td className="px-4 py-2.5 truncate">{projectNames[e.projectId] ?? `#${e.projectId}`}</td>
-                          <td className="px-4 py-2.5 text-muted-foreground truncate">{e.taskId ? (taskNames[e.taskId] ?? `#${e.taskId}`) : '—'}</td>
-                          <td className="px-4 py-2.5 font-mono text-muted-foreground">{stripSeconds(e.startTime)}</td>
-                          <td className="px-4 py-2.5 font-mono text-muted-foreground">{stripSeconds(e.endTime)}</td>
-                          <td className="px-4 py-2.5 text-center font-semibold text-emerald-600 dark:text-emerald-400">
-                            {formatDuration(e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime))}
-                          </td>
-                          <td className="px-4 py-2.5 text-muted-foreground truncate">{e.description || '—'}</td>
+            {hasEntries && (() => {
+              const { regular: regularEntries, overtime: overtimeEntries } = splitOvertimeEntries(dayEntries)
+              const overtimeMins = Math.max(0, mins - 480)
+              const renderRow = (e: (typeof dayEntries)[number], isOT: boolean) => (
+                <tr key={e.id} className={cn('border-b border-border/30 last:border-0', isOT && 'bg-amber-500/[0.04]')}>
+                  <td className="px-4 py-2.5">{projectNames[e.projectId] ?? `#${e.projectId}`}</td>
+                  <td className="px-4 py-2.5 text-muted-foreground">{e.taskId ? (taskNames[e.taskId] ?? `#${e.taskId}`) : '—'}</td>
+                  <td className="px-4 py-2.5 font-mono text-muted-foreground whitespace-nowrap">{format12h(e.startTime)}</td>
+                  <td className="px-4 py-2.5 font-mono text-muted-foreground whitespace-nowrap">{format12h(e.endTime)}</td>
+                  <td className="px-4 py-2.5 text-center font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                    {formatDuration(e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime))}
+                  </td>
+                  <td className="px-4 py-2.5 text-muted-foreground max-w-[220px]">
+                    <DescriptionCell text={e.description} className="text-sm break-words" />
+                  </td>
+                </tr>
+              )
+              const renderMobileCard = (e: (typeof dayEntries)[number], isOT: boolean) => (
+                <div key={e.id} className={cn('px-4 py-3 space-y-1', isOT && 'bg-amber-500/[0.04]')}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{projectNames[e.projectId] ?? `#${e.projectId}`}</span>
+                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
+                      {formatDuration(e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime))}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="font-mono whitespace-nowrap">{format12h(e.startTime)} – {format12h(e.endTime)}</span>
+                    {e.taskId && <span>· {taskNames[e.taskId] ?? `Task #${e.taskId}`}</span>}
+                  </div>
+                  {e.description && (
+                    <DescriptionCell text={e.description} className="text-xs text-muted-foreground" />
+                  )}
+                </div>
+              )
+              return (
+                <>
+                  {/* Desktop table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <table className="w-full text-sm table-fixed">
+                      <colgroup>
+                        <col className="w-[16%]" />
+                        <col className="w-[14%]" />
+                        <col className="w-[11%]" />
+                        <col className="w-[11%]" />
+                        <col className="w-[11%]" />
+                        <col />
+                      </colgroup>
+                      <thead>
+                        <tr className="border-b border-border/50 bg-muted/10">
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Project</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Task</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Start</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">End</th>
+                          <th className="px-4 py-2 text-center text-xs font-semibold text-muted-foreground">Duration</th>
+                          <th className="px-4 py-2 text-left text-xs font-semibold text-muted-foreground">Description</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {regularEntries.map((e) => renderRow(e, false))}
+                        {overtimeEntries.length > 0 && (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-1.5 bg-amber-500/[0.06] border-y border-amber-500/20">
+                              <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                <Zap className="h-3 w-3" />
+                                Overtime · {formatDuration(overtimeMins)}
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                        {overtimeEntries.map((e) => renderRow(e, true))}
+                      </tbody>
+                    </table>
+                  </div>
 
-                {/* Mobile cards */}
-                <div className="sm:hidden divide-y divide-border/40">
-                  {dayEntries.map((e) => (
-                    <div key={e.id} className="px-4 py-3 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">
-                          {projectNames[e.projectId] ?? `#${e.projectId}`}
-                        </span>
-                        <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                          {formatDuration(e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime))}
-                        </span>
+                  {/* Mobile cards */}
+                  <div className="sm:hidden divide-y divide-border/40">
+                    {regularEntries.map((e) => renderMobileCard(e, false))}
+                    {overtimeEntries.length > 0 && (
+                      <div className="flex items-center gap-1.5 px-4 py-1.5 bg-amber-500/[0.06] border-y border-amber-500/20 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                        <Zap className="h-3 w-3" />
+                        Overtime · {formatDuration(overtimeMins)}
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <span className="font-mono">{stripSeconds(e.startTime)} – {stripSeconds(e.endTime)}</span>
-                        {e.taskId && <span>· {taskNames[e.taskId] ?? `Task #${e.taskId}`}</span>}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        {e.description ?? <span className="italic opacity-50">No description</span>}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+                    )}
+                    {overtimeEntries.map((e) => renderMobileCard(e, true))}
+                  </div>
+                </>
+              )
+            })()}
           </div>
         )
       })}

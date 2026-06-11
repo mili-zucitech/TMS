@@ -1,10 +1,14 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
   useGetEmployeeHoursQuery,
-  useGetProjectUtilizationQuery,
+  useGetProjectUtilizationReportQuery,
   useGetBillableHoursQuery,
   useGetKpiSummaryQuery,
   useGetLeaveReportQuery,
+  useGetOvertimeSummaryQuery,
+  useGetTimesheetComplianceQuery,
+  useGetTaskSummaryQuery,
+  useGetApprovalTurnaroundQuery,
 } from '@/features/reports/reportsApi'
 import type {
   ReportFilters,
@@ -48,7 +52,7 @@ export function useEmployeeHoursReport(initial: ReportFilters = {}) {
 
 export function useProjectUtilizationReport(initial: ReportFilters = {}) {
   return useReportHookBase(
-    (f) => useGetProjectUtilizationQuery(f),
+    (f) => useGetProjectUtilizationReportQuery(f),
     initial,
   )
 }
@@ -70,6 +74,34 @@ export function useKpiSummary(initial: ReportFilters = {}) {
 export function useLeaveReport(initial: ReportFilters = {}) {
   return useReportHookBase(
     (f) => useGetLeaveReportQuery(f),
+    initial,
+  )
+}
+
+export function useOvertimeSummary(initial: ReportFilters = {}) {
+  return useReportHookBase(
+    (f) => useGetOvertimeSummaryQuery(f),
+    initial,
+  )
+}
+
+export function useTimesheetCompliance(initial: ReportFilters = {}) {
+  return useReportHookBase(
+    (f) => useGetTimesheetComplianceQuery(f),
+    initial,
+  )
+}
+
+export function useTaskSummary(initial: ReportFilters = {}) {
+  return useReportHookBase(
+    (f) => useGetTaskSummaryQuery(f),
+    initial,
+  )
+}
+
+export function useApprovalTurnaround(initial: ReportFilters = {}) {
+  return useReportHookBase(
+    (f) => useGetApprovalTurnaroundQuery(f),
     initial,
   )
 }
@@ -114,44 +146,67 @@ export function useDepartmentProductivityReport(initial: ReportFilters = {}): Us
 // ── Composite hooks per role ──────────────────────────────────────────────────
 
 export function useHRReports(initial: ReportFilters = {}) {
-  const hours = useEmployeeHoursReport(initial)
-  const dept  = useDepartmentProductivityReport(initial)
-  const leave = useLeaveReport(initial)
+  const hours      = useEmployeeHoursReport(initial)
+  const dept       = useDepartmentProductivityReport(initial)
+  const leave      = useLeaveReport(initial)
+  const overtime   = useOvertimeSummary(initial)
+  const compliance = useTimesheetCompliance(initial)
 
   const isLoading = hours.isLoading || dept.isLoading || leave.isLoading
   const error     = hours.error ?? dept.error ?? leave.error ?? null
 
   const applyFilters = useCallback(
-    (f: ReportFilters) => { hours.applyFilters(f); dept.applyFilters(f); leave.applyFilters(f) },
-    [hours, dept, leave],
+    (f: ReportFilters) => {
+      hours.applyFilters(f); dept.applyFilters(f); leave.applyFilters(f)
+      overtime.applyFilters(f); compliance.applyFilters(f)
+    },
+    [hours, dept, leave, overtime, compliance],
   )
-  const refresh = useCallback(() => { hours.refresh(); dept.refresh(); leave.refresh() }, [hours, dept, leave])
+  const refresh = useCallback(
+    () => { hours.refresh(); dept.refresh(); leave.refresh(); overtime.refresh(); compliance.refresh() },
+    [hours, dept, leave, overtime, compliance],
+  )
 
-  return { hours, dept, leave, isLoading, error, applyFilters, refresh }
+  return { hours, dept, leave, overtime, compliance, isLoading, error, applyFilters, refresh }
 }
 
 export function useManagerReports(initial: ReportFilters = {}) {
-  const hours    = useEmployeeHoursReport(initial)
-  const billable = useBillableHoursReport(initial)
-  const leave    = useLeaveReport(initial)
+  const hours      = useEmployeeHoursReport(initial)
+  const billable   = useBillableHoursReport(initial)
+  const leave      = useLeaveReport(initial)
+  const projects   = useProjectUtilizationReport(initial)
+  const overtime   = useOvertimeSummary(initial)
+  const compliance = useTimesheetCompliance(initial)
+  const tasks      = useTaskSummary(initial)
 
   const isLoading = hours.isLoading || billable.isLoading || leave.isLoading
   const error     = hours.error ?? billable.error ?? leave.error ?? null
 
   const applyFilters = useCallback(
-    (f: ReportFilters) => { hours.applyFilters(f); billable.applyFilters(f); leave.applyFilters(f) },
-    [hours, billable, leave],
+    (f: ReportFilters) => {
+      hours.applyFilters(f); billable.applyFilters(f); leave.applyFilters(f)
+      projects.applyFilters(f); overtime.applyFilters(f); compliance.applyFilters(f); tasks.applyFilters(f)
+    },
+    [hours, billable, leave, projects, overtime, compliance, tasks],
   )
-  const refresh = useCallback(() => { hours.refresh(); billable.refresh(); leave.refresh() }, [hours, billable, leave])
+  const refresh = useCallback(
+    () => { hours.refresh(); billable.refresh(); leave.refresh(); projects.refresh(); overtime.refresh(); compliance.refresh(); tasks.refresh() },
+    [hours, billable, leave, projects, overtime, compliance, tasks],
+  )
 
-  return { hours, billable, leave, isLoading, error, applyFilters, refresh }
+  return { hours, billable, leave, projects, overtime, compliance, tasks, isLoading, error, applyFilters, refresh }
 }
 
 export function useDirectorReports(initial: ReportFilters = {}) {
-  const hours    = useEmployeeHoursReport(initial)
-  const projects = useProjectUtilizationReport(initial)
-  const billable = useBillableHoursReport(initial)
-  const kpi      = useKpiSummary(initial)
+  const hours      = useEmployeeHoursReport(initial)
+  const projects   = useProjectUtilizationReport(initial)
+  const billable   = useBillableHoursReport(initial)
+  const kpi        = useKpiSummary(initial)
+  const dept       = useDepartmentProductivityReport(initial)
+  const tasks      = useTaskSummary(initial)
+  const turnaround = useApprovalTurnaround(initial)
+  const compliance = useTimesheetCompliance(initial)
+  const overtime   = useOvertimeSummary(initial)
 
   const isLoading = hours.isLoading || projects.isLoading || billable.isLoading || kpi.isLoading
   const error     = hours.error ?? projects.error ?? billable.error ?? kpi.error ?? null
@@ -160,13 +215,18 @@ export function useDirectorReports(initial: ReportFilters = {}) {
     (f: ReportFilters) => {
       hours.applyFilters(f); projects.applyFilters(f)
       billable.applyFilters(f); kpi.applyFilters(f)
+      dept.applyFilters(f); tasks.applyFilters(f)
+      turnaround.applyFilters(f); compliance.applyFilters(f); overtime.applyFilters(f)
     },
-    [hours, projects, billable, kpi],
+    [hours, projects, billable, kpi, dept, tasks, turnaround, compliance, overtime],
   )
   const refresh = useCallback(
-    () => { hours.refresh(); projects.refresh(); billable.refresh(); kpi.refresh() },
-    [hours, projects, billable, kpi],
+    () => {
+      hours.refresh(); projects.refresh(); billable.refresh(); kpi.refresh()
+      dept.refresh(); tasks.refresh(); turnaround.refresh(); compliance.refresh(); overtime.refresh()
+    },
+    [hours, projects, billable, kpi, dept, tasks, turnaround, compliance, overtime],
   )
 
-  return { hours, projects, billable, kpi, isLoading, error, applyFilters, refresh }
+  return { hours, projects, billable, kpi, dept, tasks, turnaround, compliance, overtime, isLoading, error, applyFilters, refresh }
 }

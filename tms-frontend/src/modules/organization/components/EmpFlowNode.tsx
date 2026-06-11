@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Handle, Position } from 'reactflow'
 import { Mail, Briefcase, X, User } from 'lucide-react'
 import { cn } from '@/utils/cn'
-import type { EmployeeSummary, EmployeeStatus } from '../types/organization.types'
+import type { HierarchyMember, EmployeeStatus } from '../types/organization.types'
 
 const STATUS_STYLES: Record<EmployeeStatus, string> = {
   ACTIVE:     'bg-emerald-100 text-emerald-700',
@@ -21,7 +21,7 @@ const STATUS_LABEL: Record<EmployeeStatus, string> = {
 }
 
 export interface EmpFlowNodeData {
-  employee: EmployeeSummary
+  employee: HierarchyMember
 }
 
 export function EmpFlowNode({ data }: { data: EmpFlowNodeData }) {

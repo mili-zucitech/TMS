@@ -17,6 +17,7 @@ import com.company.tms.leave.validator.LeaveValidator;
 import com.company.tms.notification.event.LeaveAppliedEvent;
 import com.company.tms.user.entity.User;
 import com.company.tms.user.repository.UserRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,9 +28,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
 import java.util.Collection;
@@ -56,6 +59,11 @@ class LeaveServiceTest {
     @InjectMocks
     private LeaveService leaveService;
 
+    @AfterEach
+    void tearDown() {
+        SecurityContextHolder.clearContext();
+    }
+
     private UUID userId;
     private UUID managerId;
     private UUID approverId;
@@ -68,6 +76,8 @@ class LeaveServiceTest {
         userId = UUID.randomUUID();
         managerId = UUID.randomUUID();
         approverId = UUID.randomUUID();
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("approver@company.com", null, List.of()));
 
         testUser = User.builder()
                 .id(userId)
@@ -115,7 +125,7 @@ class LeaveServiceTest {
             doNothing().when(leaveValidator).validateLeaveTypeExists(1L);
             doNothing().when(leaveValidator).validateDateRange(any(), any());
             when(leaveValidator.calculateTotalDays(any(), any())).thenReturn(3);
-            doNothing().when(leaveValidator).validateSufficientBalance(userId, 1L, 3);
+            doNothing().when(leaveValidator).validateSufficientBalance(userId, 1L, 3, 2026);
             doNothing().when(leaveValidator).validateNoApprovedLeaveOverlap(any(), any(), any(), anyLong());
             when(leaveMapper.toLeaveEntity(request)).thenReturn(pendingLeave);
             when(leaveRepository.save(any(Leave.class))).thenReturn(pendingLeave);
@@ -151,7 +161,7 @@ class LeaveServiceTest {
             doNothing().when(leaveValidator).validateDateRange(any(), any());
             when(leaveValidator.calculateTotalDays(any(), any())).thenReturn(15);
             doThrow(new InsufficientLeaveBalanceException("Insufficient leave balance. Requested: 15, Available: 5"))
-                    .when(leaveValidator).validateSufficientBalance(userId, 1L, 15);
+                    .when(leaveValidator).validateSufficientBalance(userId, 1L, 15, 2026);
 
             assertThatThrownBy(() -> leaveService.createLeaveRequest(request))
                     .isInstanceOf(InsufficientLeaveBalanceException.class)
@@ -173,7 +183,7 @@ class LeaveServiceTest {
             doNothing().when(leaveValidator).validateLeaveTypeExists(1L);
             doNothing().when(leaveValidator).validateDateRange(any(), any());
             when(leaveValidator.calculateTotalDays(any(), any())).thenReturn(3);
-            doNothing().when(leaveValidator).validateSufficientBalance(any(), anyLong(), anyInt());
+            doNothing().when(leaveValidator).validateSufficientBalance(any(), anyLong(), anyInt(), anyInt());
             doThrow(new LeaveOverlapException("Leave dates overlap with existing approved leave"))
                     .when(leaveValidator).validateNoApprovedLeaveOverlap(any(), any(), any(), anyLong());
 
@@ -252,18 +262,20 @@ class LeaveServiceTest {
 
             when(leaveRepository.findById(1L)).thenReturn(Optional.of(pendingLeave));
             doNothing().when(leaveValidator).validateLeaveIsPending(LeaveStatus.PENDING, 1L);
-            doNothing().when(leaveBalanceService).deductLeaveBalance(userId, 1L, 3);
+            doNothing().when(leaveBalanceService).deductLeaveBalance(userId, 1L, 3, pendingLeave.getStartDate().getYear());
             when(leaveRepository.save(pendingLeave)).thenReturn(pendingLeave);
             when(leaveMapper.toLeaveRequestResponse(pendingLeave)).thenReturn(approvedResponse);
             when(leaveTypeRepository.findById(any())).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("approver@company.com")).thenReturn(Optional.of(
+                    User.builder().id(approverId).email("approver@company.com").name("Approver").build()));
 
-            leaveService.approveLeaveRequest(1L, approverId);
+            leaveService.approveLeaveRequest(1L);
 
             assertThat(pendingLeave.getStatus()).isEqualTo(LeaveStatus.APPROVED);
             assertThat(pendingLeave.getApprovedBy()).isEqualTo(approverId);
             assertThat(pendingLeave.getApprovedAt()).isNotNull();
             assertThat(pendingLeave.getRejectionReason()).isNull();
-            verify(leaveBalanceService).deductLeaveBalance(userId, 1L, 3);
+            verify(leaveBalanceService).deductLeaveBalance(userId, 1L, 3, pendingLeave.getStartDate().getYear());
         }
     }
 
@@ -283,8 +295,10 @@ class LeaveServiceTest {
             when(leaveRepository.save(pendingLeave)).thenReturn(pendingLeave);
             when(leaveMapper.toLeaveRequestResponse(pendingLeave)).thenReturn(rejectedResponse);
             when(leaveTypeRepository.findById(any())).thenReturn(Optional.empty());
+            when(userRepository.findByEmail("approver@company.com")).thenReturn(Optional.of(
+                    User.builder().id(approverId).email("approver@company.com").name("Approver").build()));
 
-            leaveService.rejectLeaveRequest(1L, approverId, "Insufficient staffing");
+            leaveService.rejectLeaveRequest(1L, "Insufficient staffing");
 
             assertThat(pendingLeave.getStatus()).isEqualTo(LeaveStatus.REJECTED);
             assertThat(pendingLeave.getRejectionReason()).isEqualTo("Insufficient staffing");

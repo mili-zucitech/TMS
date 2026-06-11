@@ -16,6 +16,7 @@ import {
 import type { AxiosError } from 'axios'
 
 import { Button } from '@/components/ui/Button'
+import { AppSelect } from '@/components/ui/Select'
 import { useAuth } from '@/hooks/useAuth'
 import departmentService from '../services/departmentService'
 import userModuleService from '@/modules/users/services/userService'
@@ -148,14 +149,15 @@ function DeptFormModal({ open, onClose, onSaved, dept }: DeptFormModalProps) {
           {dept && (
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Status</label>
-              <select
+              <AppSelect
                 value={status}
-                onChange={(e) => setStatus(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"
-              >
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Inactive</option>
-              </select>
+                onChange={(v) => setStatus(String(v))}
+                options={[
+                  { value: 'ACTIVE', label: 'Active' },
+                  { value: 'INACTIVE', label: 'Inactive' },
+                ]}
+                isSearchable={false}
+              />
             </div>
           )}
 

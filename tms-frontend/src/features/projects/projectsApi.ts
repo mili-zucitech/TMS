@@ -5,6 +5,8 @@ import type {
   ProjectUpdateRequest,
   ProjectAssignmentRequest,
   ProjectAssignmentResponse,
+  ProjectUtilizationResponse,
+  ProjectBreakdownResponse,
   SpringPage,
 } from '@/modules/projects/types/project.types'
 
@@ -57,6 +59,16 @@ export const projectsApi = baseApi.injectEndpoints({
         { type: 'ProjectAssignment', id: projectId },
       ],
     }),
+
+    // ── Utilization ────────────────────────────────────────────────────────
+    getProjectUtilization: builder.query<ProjectUtilizationResponse, number>({
+      query: (id) => `/projects/${id}/utilization`,
+      providesTags: (_result, _error, id) => [{ type: 'Project', id: `util-${id}` }],
+    }),
+    getProjectBreakdown: builder.query<ProjectBreakdownResponse, number>({
+      query: (id) => `/projects/${id}/utilization/breakdown`,
+      providesTags: (_result, _error, id) => [{ type: 'Project', id: `breakdown-${id}` }],
+    }),
   }),
   overrideExisting: false,
 })
@@ -71,4 +83,6 @@ export const {
   useGetAssignmentsByUserQuery,
   useAssignUserMutation,
   useRemoveAssignmentMutation,
+  useGetProjectUtilizationQuery,
+  useGetProjectBreakdownQuery,
 } = projectsApi

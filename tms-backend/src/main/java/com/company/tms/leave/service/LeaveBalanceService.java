@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -37,9 +38,13 @@ public class LeaveBalanceService {
     public List<LeaveBalanceResponse> getUserLeaveBalances(UUID userId) {
         int year = LocalDate.now().getYear();
         log.debug("Fetching leave balances for user {} year {}", userId, year);
-        return leaveBalanceRepository.findByUserIdAndYear(userId, year).stream()
+        List<LeaveBalance> balances = leaveBalanceRepository.findByUserIdAndYear(userId, year);
+        if (balances.isEmpty()) return List.of();
+        Map<Long, String> typeNames = leaveTypeRepository.findAll().stream()
+                .collect(Collectors.toMap(lt -> lt.getId(), lt -> lt.getName()));
+        return balances.stream()
                 .map(leaveMapper::toLeaveBalanceResponse)
-                .map(this::enrichWithLeaveTypeName)
+                .peek(r -> r.setLeaveTypeName(typeNames.get(r.getLeaveTypeId())))
                 .collect(Collectors.toList());
     }
 
@@ -48,8 +53,7 @@ public class LeaveBalanceService {
      * Called internally by LeaveService after approval.
      */
     @Transactional
-    public void deductLeaveBalance(UUID userId, Long leaveTypeId, int days) {
-        int year = LocalDate.now().getYear();
+    public void deductLeaveBalance(UUID userId, Long leaveTypeId, int days, int year) {
         log.info("Deducting {} day(s) from balance for user {} leaveType {} year {}",
                 days, userId, leaveTypeId, year);
         LeaveBalance balance = leaveBalanceRepository
@@ -94,9 +98,4 @@ public class LeaveBalanceService {
         return created;
     }
 
-    private LeaveBalanceResponse enrichWithLeaveTypeName(LeaveBalanceResponse response) {
-        leaveTypeRepository.findById(response.getLeaveTypeId())
-                .ifPresent(lt -> response.setLeaveTypeName(lt.getName()));
-        return response;
-    }
 }

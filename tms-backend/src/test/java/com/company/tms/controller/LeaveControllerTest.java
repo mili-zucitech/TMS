@@ -183,7 +183,7 @@ class LeaveControllerTest {
                     .approvedBy(approverId).build();
 
             LeaveApproveRequest request = new LeaveApproveRequest(approverId);
-            when(leaveService.approveLeaveRequest(eq(1L), any())).thenReturn(approved);
+            when(leaveService.approveLeaveRequest(eq(1L))).thenReturn(approved);
 
             mockMvc.perform(post("/api/v1/leaves/{id}/approve", 1L)
                             .contentType(MediaType.APPLICATION_JSON)

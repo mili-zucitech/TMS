@@ -5,8 +5,12 @@ import com.company.tms.task.dto.TaskCommentResponse;
 import com.company.tms.task.entity.TaskComment;
 import com.company.tms.task.mapper.TaskMapper;
 import com.company.tms.task.repository.TaskCommentRepository;
+import com.company.tms.exception.ResourceNotFoundException;
+import com.company.tms.user.entity.User;
+import com.company.tms.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +26,7 @@ public class TaskCommentService {
     private final TaskCommentRepository taskCommentRepository;
     private final TaskMapper taskMapper;
     private final TaskService taskService;
+    private final UserRepository userRepository;
 
     /**
      * Adds a comment to an existing task.
@@ -29,11 +34,15 @@ public class TaskCommentService {
      */
     @Transactional
     public TaskCommentResponse addCommentToTask(TaskCommentRequest request) {
-        log.info("Adding comment to taskId: {} by userId: {}", request.getTaskId(), request.getUserId());
-        // Ensure task exists — throws ResourceNotFoundException if not
+        log.info("Adding comment to taskId: {}", request.getTaskId());
         taskService.getExistingTask(request.getTaskId());
 
+        String callerEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+        User author = userRepository.findByEmail(callerEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User", "email", callerEmail));
+
         TaskComment comment = taskMapper.toCommentEntity(request);
+        comment.setUserId(author.getId()); // Always use principal — never trust client-supplied userId
         TaskCommentResponse saved = taskMapper.toCommentResponse(taskCommentRepository.save(comment));
         log.info("Comment added for taskId: {}", request.getTaskId());
         return saved;

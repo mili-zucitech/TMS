@@ -11,6 +11,9 @@ import {
   UserCheck,
   FolderKanban,
   SendHorizonal,
+  Zap,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react'
 import {
   BarChart,
@@ -28,8 +31,11 @@ import {
 
 import { useAuth } from '@/context/AuthContext'
 import { useGetUserByIdQuery } from '@/features/users/usersApi'
+import { useGetTeamTimesheetsQuery, useGetEntriesByTimesheetQuery } from '@/features/timesheets/timesheetsApi'
+import { useGetProjectUtilizationReportQuery } from '@/features/reports/reportsApi'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { cn } from '@/utils/cn'
 import {
   DashboardCard,
   ChartCard,
@@ -38,7 +44,10 @@ import {
   EmptyState,
 } from '../components/DashboardComponents'
 import { useManagerDashboard } from '../hooks/useDashboard'
+import { WEEKLY_HOURS_TARGET } from '../types/dashboard.types'
 import type { LeaveRequestResponse, TimesheetResponse, UserResponse } from '../types/dashboard.types'
+import type { ProjectUtilizationEntry } from '@/modules/reports/types/report.types'
+
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -46,6 +55,20 @@ const PIE_COLORS = ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#6366f1']
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
+function minutesToHours(mins: number): string {
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m > 0 ? `${h}h ${m}m` : `${h}h`
+}
+
+function getThisMonday(): string {
+  const d = new Date()
+  const day = d.getDay()
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1)
+  d.setDate(diff)
+  return d.toISOString().split('T')[0]
 }
 
 type TimesheetBucket = 'NOT_SUBMITTED' | 'DRAFT' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'
@@ -92,6 +115,79 @@ function TeamTimesheetRow({ user, timesheet }: TimesheetRow) {
   )
 }
 
+// ── Team member hours row (self-fetches entries) ─────────────────────────────
+
+interface TeamMemberHoursRowProps {
+  user: UserResponse
+  timesheet: TimesheetResponse
+}
+
+function TeamMemberHoursRow({ user, timesheet }: TeamMemberHoursRowProps) {
+  const { data: entries = [], isLoading } = useGetEntriesByTimesheetQuery(timesheet.id)
+  const totalMinutes = entries.reduce((sum, e) => sum + (e.durationMinutes ?? 0), 0)
+  const totalHours = totalMinutes / 60
+  const isOvertime = totalHours > WEEKLY_HOURS_TARGET
+  const isOnTrack = !isOvertime && totalHours >= WEEKLY_HOURS_TARGET
+  const pct = Math.min((totalHours / WEEKLY_HOURS_TARGET) * 100, 100)
+  const status = timesheet.status as TimesheetBucket
+  const config = TS_STATUS_CONFIG[status] ?? TS_STATUS_CONFIG.NOT_SUBMITTED
+
+  if (isLoading) {
+    return (
+      <tr className="border-b border-border/60">
+        <td className="px-4 py-3" colSpan={3}>
+          <div className="h-8 rounded bg-muted animate-pulse" />
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <tr className="border-b border-border/60 last:border-0 hover:bg-muted/30 transition-colors">
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-600 text-xs font-bold text-white">
+            {user.name.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p className="text-sm font-medium">{user.name}</p>
+            <p className="text-xs text-muted-foreground">{user.designation ?? user.email}</p>
+          </div>
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden shrink-0">
+            <div
+              className={cn(
+                'h-full rounded-full transition-all',
+                isOvertime ? 'bg-amber-500' : isOnTrack ? 'bg-emerald-500' : 'bg-rose-500',
+              )}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className={cn(
+            'text-xs font-semibold tabular-nums shrink-0',
+            isOvertime ? 'text-amber-600 dark:text-amber-400' : isOnTrack ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-500',
+          )}>
+            {minutesToHours(totalMinutes)}
+          </span>
+          {isOvertime ? (
+            <Zap className="h-3 w-3 text-amber-500 shrink-0" />
+          ) : isOnTrack ? (
+            <TrendingUp className="h-3 w-3 text-emerald-500 shrink-0" />
+          ) : (
+            <TrendingDown className="h-3 w-3 text-rose-500 shrink-0" />
+          )}
+        </div>
+      </td>
+      <td className="py-3 px-4">
+        <Badge variant={config.variant} className="text-[10px]">{config.label}</Badge>
+      </td>
+    </tr>
+  )
+}
+
 // ── Pending leave row ─────────────────────────────────────────────────────────
 
 function PendingLeaveRow({ leave }: { leave: LeaveRequestResponse }) {
@@ -131,6 +227,62 @@ export function ManagerDashboardPage() {
     isLoading,
     error,
   } = useManagerDashboard(managerId)
+
+  const { data: teamTimesheetsData = [] } = useGetTeamTimesheetsQuery(managerId!, { skip: !managerId })
+  const currentWeekStart = useMemo(() => getThisMonday(), [])
+  const { data: projectUtilReport } = useGetProjectUtilizationReportQuery(undefined, {
+    refetchOnMountOrArgChange: true,
+  })
+  // Backend already scopes to the logged-in manager — use entries directly
+  const managerUtilEntries: ProjectUtilizationEntry[] = projectUtilReport?.entries ?? []
+
+  const utilSummaryStats = useMemo(() => {
+    const entries = projectUtilReport?.entries ?? []
+    return {
+      totalProjects: entries.length,
+      totalLoggedHours: projectUtilReport?.totalLoggedHours ?? 0,
+      avgUtilization: projectUtilReport?.avgUtilizationPercent ?? 0,
+    }
+  }, [projectUtilReport])
+
+  // Top 3 projects: sort by loggedHours desc (most active first), then by utilizationPercent desc
+  const top3Entries = useMemo(
+    () =>
+      [...managerUtilEntries]
+        .sort((a, b) => b.loggedHours - a.loggedHours || b.utilizationPercent - a.utilizationPercent)
+        .slice(0, 3),
+    [managerUtilEntries],
+  )
+
+  const utilChartData = useMemo(
+    () =>
+      top3Entries.map((e) => ({
+        name: e.projectName.length > 13 ? e.projectName.slice(0, 13) + '…' : e.projectName,
+        Logged: parseFloat(e.loggedHours.toFixed(1)),
+        Allocated: parseFloat(e.allocatedHours.toFixed(1)),
+      })),
+    [top3Entries],
+  )
+
+  const currentWeekRows = useMemo(
+    () =>
+      teamTimesheetsData
+        .filter((ts) => ts.weekStartDate === currentWeekStart)
+        .map((ts) => {
+          const user = teamMembers.find((m) => m.id === ts.userId)
+          return user ? { user, timesheet: ts } : null
+        })
+        .filter((r): r is { user: UserResponse; timesheet: TimesheetResponse } => r !== null),
+    [teamTimesheetsData, currentWeekStart, teamMembers],
+  )
+
+  const overtimeRows = useMemo(
+    () =>
+      currentWeekRows
+        .filter((r) => (r.timesheet.totalMinutes ?? 0) > WEEKLY_HOURS_TARGET * 60)
+        .sort((a, b) => (b.timesheet.totalMinutes ?? 0) - (a.timesheet.totalMinutes ?? 0)),
+    [currentWeekRows],
+  )
 
   // ── Derived stats ─────────────────────────────────────────────────────────────
   const activeMembers = teamMembers.filter((u) => u.status === 'ACTIVE')
@@ -246,6 +398,48 @@ export function ManagerDashboardPage() {
         </Button>
       </div>
 
+      {/* ── Overtime This Week ── */}
+      <DashboardCard
+        title="Overtime This Week"
+        description={`Members exceeding the ${WEEKLY_HOURS_TARGET}h target`}
+        icon={Zap}
+        isLoading={isLoading}
+        bodyClassName="p-0"
+      >
+        {currentWeekRows.length === 0 ? (
+          <div className="p-5">
+            <EmptyState icon={Clock} title="No timesheets this week" description="No team timesheets found for the current week" />
+          </div>
+        ) : overtimeRows.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10">
+              <CheckCircle className="h-5 w-5 text-emerald-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium">No overtime this week</p>
+              <p className="text-xs text-muted-foreground mt-0.5">All team members are within the {WEEKLY_HOURS_TARGET}h target</p>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/60 bg-muted/30">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Employee</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Hours logged</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {overtimeRows.map(({ user: u, timesheet: ts }) => (
+                  <TeamMemberHoursRow key={u.id} user={u} timesheet={ts} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </DashboardCard>
+
       {/* ── Charts row ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Timesheet status pie */}
@@ -254,23 +448,21 @@ export function ManagerDashboardPage() {
           description="Current week"
           icon={Clock}
           isLoading={isLoading}
-          height={260}
+          height={160}
         >
           {teamTimesheets.length === 0 ? (
             <EmptyState icon={Users} title="No team members" description="No direct reports found" />
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={160}>
               <PieChart>
                 <Pie
                   data={tsDistribution}
-                  cx="55%"
+                  cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={85}
+                  innerRadius={38}
+                  outerRadius={58}
                   paddingAngle={3}
                   dataKey="value"
-                  label={({ name, percent }) => `${name} (${Math.round(percent * 100)}%)`}
-                  labelLine={false}
                 >
                   {tsDistribution.map((_, idx) => (
                     <Cell key={idx} fill={PIE_COLORS[idx % PIE_COLORS.length]} />
@@ -278,14 +470,14 @@ export function ManagerDashboardPage() {
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    fontSize: 12,
+                    fontSize: 11,
                     borderRadius: 8,
                     border: '1px solid var(--border)',
                     background: 'var(--card)',
                     color: 'var(--card-foreground)',
                   }}
                 />
-                <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11 }} />
+                <Legend iconType="circle" iconSize={7} wrapperStyle={{ fontSize: 10 }} />
               </PieChart>
             </ResponsiveContainer>
           )}
@@ -297,44 +489,44 @@ export function ManagerDashboardPage() {
           description="Active vs On Leave"
           icon={UserCheck}
           isLoading={isLoading}
-          height={260}
+          height={160}
         >
           {teamMembers.length === 0 ? (
             <EmptyState icon={Users} title="No team data" />
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ResponsiveContainer width="100%" height={160}>
               <BarChart
                 data={[
                   { name: 'Active', count: activeMembers.length, fill: '#10b981' },
                   { name: 'On Leave', count: onLeaveToday, fill: '#f59e0b' },
                   { name: 'Inactive', count: teamMembers.length - activeMembers.length, fill: '#94a3b8' },
                 ]}
-                barSize={48}
-                margin={{ top: 8, right: 8, left: -20, bottom: 0 }}
+                barSize={36}
+                margin={{ top: 4, right: 8, left: -24, bottom: 0 }}
               >
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                 <XAxis
                   dataKey="name"
-                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                  tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }}
                   axisLine={false}
                   tickLine={false}
                   allowDecimals={false}
                 />
                 <Tooltip
                   contentStyle={{
-                    fontSize: 12,
+                    fontSize: 11,
                     borderRadius: 8,
                     border: '1px solid var(--border)',
                     background: 'var(--card)',
                     color: 'var(--card-foreground)',
                   }}
                 />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                   {[{ fill: '#10b981' }, { fill: '#f59e0b' }, { fill: '#94a3b8' }].map((c, i) => (
                     <Cell key={i} fill={c.fill} />
                   ))}
@@ -411,7 +603,7 @@ export function ManagerDashboardPage() {
 
       {/* ── Projects overview ── */}
       <DashboardCard
-        title="Project Overview"
+        title="Project Utilization"
         icon={FolderKanban}
         isLoading={isLoading}
         action={
@@ -420,38 +612,132 @@ export function ManagerDashboardPage() {
           </Button>
         }
       >
-        {allProjects.length === 0 ? (
-          <EmptyState icon={FolderKanban} title="No projects found" />
+        {managerUtilEntries.length === 0 ? (
+          <EmptyState icon={FolderKanban} title="No projects found" description="No projects are assigned to you as project manager" />
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {[...allProjects]
-              .sort((a, b) => {
-                const order: Record<string, number> = { ACTIVE: 0, ON_HOLD: 1, PLANNED: 2, COMPLETED: 3, CANCELLED: 4 }
-                return (order[a.status] ?? 5) - (order[b.status] ?? 5)
-              })
-              .slice(0, 6)
-              .map((p) => {
-                const statusConfig: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'secondary' | 'destructive' }> = {
-                  ACTIVE:    { label: 'Active',    variant: 'success' },
-                  PLANNED:   { label: 'Planned',   variant: 'info' },
-                  ON_HOLD:   { label: 'On Hold',   variant: 'warning' },
-                  COMPLETED: { label: 'Completed', variant: 'secondary' },
-                  CANCELLED: { label: 'Cancelled', variant: 'destructive' },
-                }
-                const cfg = statusConfig[p.status] ?? { label: p.status, variant: 'secondary' as const }
-                return (
-                  <div
-                    key={p.id}
-                    className="p-3 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-semibold truncate">{p.name}</p>
-                      <Badge variant={cfg.variant} className="text-[10px] shrink-0">{cfg.label}</Badge>
+          <div className="space-y-6">
+
+            {/* ── Summary strip ── */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/10">
+                  <FolderKanban className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold tabular-nums leading-none">{utilSummaryStats.totalProjects}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Projects</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-500/10">
+                  <Clock className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-bold tabular-nums leading-none">{utilSummaryStats.totalLoggedHours.toFixed(0)}h</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Hours Logged</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/30">
+                <div className={cn(
+                  'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+                  utilSummaryStats.avgUtilization >= 100 ? 'bg-red-500/10' :
+                  utilSummaryStats.avgUtilization >= 80  ? 'bg-amber-500/10' : 'bg-emerald-500/10',
+                )}>
+                  <TrendingUp className={cn('h-4 w-4',
+                    utilSummaryStats.avgUtilization >= 100 ? 'text-red-500' :
+                    utilSummaryStats.avgUtilization >= 80  ? 'text-amber-500' : 'text-emerald-500',
+                  )} />
+                </div>
+                <div className="min-w-0">
+                  <p className={cn('text-lg font-bold tabular-nums leading-none',
+                    utilSummaryStats.avgUtilization >= 100 ? 'text-red-500' :
+                    utilSummaryStats.avgUtilization >= 80  ? 'text-amber-500' : 'text-emerald-500',
+                  )}>{utilSummaryStats.avgUtilization.toFixed(0)}%</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Avg Utilization</p>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Charts row ── */}
+            <ChartCard
+              title="Hours Overview"
+              description="Logged vs allocated hours per project"
+              height={230}
+            >
+              <ResponsiveContainer width="100%" height={230}>
+                <BarChart
+                  data={utilChartData}
+                  margin={{ top: 4, right: 8, left: -12, bottom: 52 }}
+                  barGap={3}
+                  barSize={13}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} className="stroke-border/40" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10 }}
+                    angle={-40}
+                    textAnchor="end"
+                    interval={0}
+                  />
+                  <YAxis tick={{ fontSize: 10 }} unit="h" />
+                  <Tooltip
+                    contentStyle={{ fontSize: '12px', borderRadius: '8px' }}
+                    formatter={(v: number) => [`${v}h`]}
+                  />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '6px' }} />
+                  <Bar dataKey="Logged" fill="#6366f1" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="Allocated" fill="#10b981" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartCard>
+
+            {/* ── Per-project progress cards ── */}
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                Top projects by activity
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {top3Entries.map((entry) => {
+                  const utilPct  = Math.min(entry.utilizationPercent ?? 0, 100)
+                  const utilBar  = utilPct >= 100 ? 'bg-red-500' : utilPct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
+                  const utilText = utilPct >= 100 ? 'text-red-500' : utilPct >= 80 ? 'text-amber-500' : 'text-emerald-500'
+                  return (
+                    <div
+                      key={entry.projectId}
+                      className="rounded-xl border border-border/60 bg-card p-4 space-y-3 hover:bg-muted/20 transition-colors"
+                    >
+                      {/* Header */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{entry.projectName}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {entry.activeEmployees} member{entry.activeEmployees !== 1 ? 's' : ''}
+                          </p>
+                        </div>
+                        <span className={cn('text-sm font-bold tabular-nums shrink-0 mt-0.5', utilText)}>
+                          {(entry.utilizationPercent ?? 0).toFixed(0)}%
+                        </span>
+                      </div>
+
+                      {/* Utilization bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>Utilization</span>
+                          <span>{entry.loggedHours.toFixed(0)}h / {entry.allocatedHours.toFixed(0)}h</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted overflow-hidden">
+                          <div
+                            className={cn('h-full rounded-full transition-all duration-500', utilBar)}
+                            style={{ width: `${utilPct}%` }}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <p className="mt-1 text-xs text-muted-foreground">{p.clientName ?? p.projectCode}</p>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
+            </div>
+
           </div>
         )}
       </DashboardCard>

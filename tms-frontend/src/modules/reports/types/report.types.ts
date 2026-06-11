@@ -117,6 +117,91 @@ export interface KpiSummary {
   pendingTimesheets: number
 }
 
+// ── Overtime Summary ──────────────────────────────────────────────────────────
+
+export interface OvertimeSummaryEntry {
+  userId: string
+  employeeName: string
+  department: string
+  weekStartDate: string
+  totalHours: number
+  overtimeHours: number
+  overtimeReason: string | null
+}
+
+export interface OvertimeSummaryReport {
+  entries: OvertimeSummaryEntry[]
+  totalOvertimeWeeks: number
+  totalOvertimeHours: number
+  affectedEmployees: number
+}
+
+// ── Timesheet Compliance ───────────────────────────────────────────────────────
+
+export interface TimesheetComplianceEntry {
+  userId: string
+  employeeName: string
+  department: string
+  totalTimesheets: number
+  submitted: number
+  approved: number
+  rejected: number
+  draft: number
+  compliancePercent: number
+}
+
+export interface TimesheetComplianceReport {
+  entries: TimesheetComplianceEntry[]
+  overallCompliancePercent: number
+  totalTimesheets: number
+  totalSubmitted: number
+  totalApproved: number
+  totalRejected: number
+}
+
+// ── Task Summary ──────────────────────────────────────────────────────────────
+
+export interface TaskSummaryEntry {
+  projectId: number
+  projectName: string
+  totalTasks: number
+  completedTasks: number
+  inProgressTasks: number
+  blockedTasks: number
+  todoTasks: number
+  completionRate: number
+  estimatedHours: number
+  loggedHours: number
+  variance: number
+}
+
+export interface TaskSummaryReport {
+  entries: TaskSummaryEntry[]
+  totalTasks: number
+  totalCompleted: number
+  overallCompletionRate: number
+  totalEstimatedHours: number
+  totalLoggedHours: number
+  totalVariance: number
+}
+
+// ── Approval Turnaround ───────────────────────────────────────────────────────
+
+export interface ApprovalTurnaroundEntry {
+  managerId: string
+  managerName: string
+  totalApproved: number
+  avgDaysToApprove: number
+  minDaysToApprove: number
+  maxDaysToApprove: number
+}
+
+export interface ApprovalTurnaroundReport {
+  entries: ApprovalTurnaroundEntry[]
+  orgAvgDaysToApprove: number
+  totalApproved: number
+}
+
 // ── Chart data shapes ─────────────────────────────────────────────────────────
 
 export interface ChartDataPoint {

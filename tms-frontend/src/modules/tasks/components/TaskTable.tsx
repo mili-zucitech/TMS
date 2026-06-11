@@ -62,7 +62,7 @@ function TableSkeleton() {
     <>
       {Array.from({ length: 6 }).map((_, i) => (
         <tr key={i}>
-          {Array.from({ length: 7 }).map((_, j) => (
+          {Array.from({ length: 8 }).map((_, j) => (
             <td key={j} className="px-4 py-3">
               <div className="h-4 animate-pulse rounded bg-muted" />
             </td>
@@ -171,6 +171,8 @@ interface TaskTableProps {
   userNames: Record<string, string>
   onEditTask: (task: TaskResponse) => void
   onDeleteTask: (task: TaskResponse) => void
+  showAssignedTo?: boolean
+  showCreatedBy?: boolean
 }
 
 const columnHelper = createColumnHelper<TaskResponse>()
@@ -185,6 +187,8 @@ export function TaskTable({
   userNames,
   onEditTask,
   onDeleteTask,
+  showAssignedTo = true,
+  showCreatedBy = true,
 }: TaskTableProps) {
   const navigate = useNavigate()
   const [sorting, setSorting] = useState<SortingState>([])
@@ -194,8 +198,8 @@ export function TaskTable({
       columnHelper.accessor('title', {
         header: ({ column }) => <SortHeader column={column} label="Task Name" />,
         cell: (info) => (
-          <div className="min-w-0">
-            <p className="font-medium text-sm truncate max-w-[240px]">{info.getValue()}</p>
+          <div className="min-w-[160px]">
+            <p className="font-medium text-sm">{info.getValue()}</p>
             <p className="text-xs text-muted-foreground font-mono">{info.row.original.taskCode}</p>
           </div>
         ),
@@ -203,30 +207,37 @@ export function TaskTable({
       columnHelper.accessor('projectId', {
         header: ({ column }) => <SortHeader column={column} label="Project" />,
         cell: (info) => (
-          <span className="text-sm text-muted-foreground">
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
             {projectNames[info.getValue()] ?? `#${info.getValue()}`}
           </span>
         ),
       }),
-      columnHelper.accessor('assignedUserId', {
+      ...(showAssignedTo ? [columnHelper.accessor('assignedUserId', {
         header: 'Assigned To',
         cell: (info) => {
           const uid = info.getValue()
           return (
-            <span className="text-sm text-muted-foreground">
+            <span className="text-sm text-muted-foreground whitespace-nowrap">
               {uid ? (userNames[uid] ?? 'Loading…') : <span className="italic">Unassigned</span>}
             </span>
           )
         },
-      }),
+      })] : []),
+      ...(showCreatedBy ? [columnHelper.accessor('createdByUserName', {
+        header: 'Created By',
+        cell: (info) => (
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {info.getValue() ?? '—'}
+          </span>
+        ),
+      })] : []),
       columnHelper.accessor('priority', {
         header: ({ column }) => <SortHeader column={column} label="Priority" />,
-        cell: (info) => <TaskPriorityBadge priority={info.getValue()} />,
+        cell: (info) => <span className="whitespace-nowrap"><TaskPriorityBadge priority={info.getValue()} /></span>,
       }),
       columnHelper.accessor('status', {
         header: ({ column }) => <SortHeader column={column} label="Status" />,
-        cell: (info) =>
-          <TaskStatusBadge status={info.getValue()} />
+        cell: (info) => <span className="whitespace-nowrap"><TaskStatusBadge status={info.getValue()} /></span>
       }),
       columnHelper.accessor('dueDate', {
         header: ({ column }) => <SortHeader column={column} label="Due Date" />,
@@ -264,7 +275,7 @@ export function TaskTable({
         ),
       }),
     ],
-    [canModify, canDelete, projectNames, userNames, navigate, onEditTask, onDeleteTask],
+    [canModify, canDelete, projectNames, userNames, navigate, onEditTask, onDeleteTask, showAssignedTo, showCreatedBy],
   )
 
   const table = useReactTable({
@@ -301,7 +312,7 @@ export function TaskTable({
                   {hg.headers.map((header) => (
                     <th
                       key={header.id}
-                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground"
+                      className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground whitespace-nowrap"
                     >
                       {header.isPlaceholder
                         ? null
@@ -369,6 +380,11 @@ export function TaskTable({
                   <span className="text-xs text-muted-foreground">
                     {projectNames[task.projectId] ?? `Project #${task.projectId}`}
                   </span>
+                  {showCreatedBy && task.createdByUserName && (
+                    <span className="text-xs text-muted-foreground">
+                      By {task.createdByUserName}
+                    </span>
+                  )}
                   <ActionCell
                     task={task}
                     canModify={canModify}

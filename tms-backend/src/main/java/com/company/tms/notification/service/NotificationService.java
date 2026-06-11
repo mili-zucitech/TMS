@@ -67,10 +67,15 @@ public class NotificationService {
     // -------------------------------------------------------------------------
 
     @Transactional
-    public NotificationResponse markNotificationAsRead(Long notificationId) {
+    public NotificationResponse markNotificationAsRead(Long notificationId, String requestingUserEmail) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Notification not found with id: " + notificationId));
+        userRepository.findByEmail(requestingUserEmail).ifPresent(caller -> {
+            if (!caller.getId().equals(notification.getUserId())) {
+                throw new AccessDeniedException("You can only mark your own notifications as read.");
+            }
+        });
         notification.setRead(true);
         return notificationMapper.toNotificationResponse(
                 notificationRepository.save(notification));

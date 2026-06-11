@@ -31,6 +31,7 @@ interface NavItem {
   label: string
   icon: React.ElementType
   roles?: string[]
+  end?: boolean
 }
 
 interface NavSection {
@@ -53,19 +54,19 @@ const NAV_SECTIONS: NavSection[] = [
         path: '/timesheets/manager',
         label: 'Review Timesheets',
         icon: ClipboardCheck,
-        roles: ['ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
+        roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
       },
       {
         path: '/timesheets/reminders',
         label: 'Send Reminders',
         icon: Mail,
-        roles: ['ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
+        roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
       },
       {
         path: '/projects',
         label: 'Projects',
         icon: FolderKanban,
-        roles: ['ADMIN', 'HR', 'MANAGER', 'EMPLOYEE'],
+        roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR', 'EMPLOYEE'],
       },
     ],
   },
@@ -81,17 +82,18 @@ const NAV_SECTIONS: NavSection[] = [
         roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
       },
       { path: '/holidays', label: 'Holidays', icon: CalendarCheck },
-      { path: '/my-team', label: 'My Team', icon: UsersRound },
+      { path: '/my-team', label: 'My Team', icon: UsersRound, end: false },
       {
         path: '/organization',
         label: 'Organization',
         icon: Building2,
-        roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR'],
+        roles: ['ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR', 'EMPLOYEE'],
       },
       {
         path: '/departments',
         label: 'Departments',
         icon: Building2,
+        roles: ['ADMIN', 'HR', 'HR_MANAGER'],
       },
     ],
   },
@@ -110,7 +112,7 @@ const NAV_SECTIONS: NavSection[] = [
     title: 'System',
     items: [
       { path: '/notifications', label: 'Notifications', icon: Bell },
-      { path: '/settings', label: 'Settings', icon: Settings, roles: ['ADMIN'] },
+      { path: '/settings', label: 'Settings', icon: Settings },
     ],
   },
 ]
@@ -260,6 +262,7 @@ function SidebarContent({
                         label={item.label}
                         path={item.path}
                         collapsed={isCollapsed}
+                        end={item.end}
                         onClick={onItemClick}
                       />
                     ))}

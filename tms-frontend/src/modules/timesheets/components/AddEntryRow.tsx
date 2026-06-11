@@ -4,6 +4,8 @@ import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { AppSelect } from '@/components/ui/Select'
+import { TimePicker12 } from './TimePicker12'
 import { cn } from '@/utils/cn'
 import {
   calcDurationMinutes,
@@ -12,11 +14,6 @@ import {
   stripSeconds,
 } from '../utils/timesheetHelpers'
 import type { TimeEntryResponse, TimeEntryCreateRequest } from '../types/timesheet.types'
-
-const selectClass =
-  'flex h-9 w-full rounded-lg border border-input bg-background px-2 py-1.5 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors disabled:opacity-50'
 
 const labelClass = 'block text-xs font-medium text-muted-foreground mb-1'
 
@@ -153,17 +150,14 @@ export function AddEntryRow({
               <label className={labelClass}>
                 Project <span className="text-destructive">*</span>
               </label>
-              <select
+              <AppSelect
                 value={projectId}
-                onChange={(e) => { setProjectId(Number(e.target.value)); setTaskId('') }}
-                className={selectClass}
+                onChange={(v) => { setProjectId(v as number); setTaskId('') }}
+                options={[{ value: '', label: '— Select project —' }, ...projects.map((p) => ({ value: p.id, label: p.name }))]}
+                placeholder="— Select project —"
                 autoFocus
-              >
-                <option value="">— Select project —</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>{p.name}</option>
-                ))}
-              </select>
+                size="sm"
+              />
             </div>
 
             {/* Task (select OR type) */}
@@ -179,16 +173,13 @@ export function AddEntryRow({
                 </button>
               </div>
               {taskInputMode === 'select' ? (
-                <select
+                <AppSelect
                   value={taskId}
-                  onChange={(e) => setTaskId(e.target.value ? Number(e.target.value) : '')}
-                  className={selectClass}
-                >
-                  <option value="">— None —</option>
-                  {filteredTasks.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
+                  onChange={(v) => setTaskId(v !== '' ? v as number : '')}
+                  options={[{ value: '', label: '— None —' }, ...filteredTasks.map((t) => ({ value: t.id, label: t.name }))]}
+                  placeholder="— None —"
+                  size="sm"
+                />
               ) : (
                 <Input
                   value={taskNote}
@@ -204,11 +195,9 @@ export function AddEntryRow({
               <label className={labelClass}>
                 Start Time <span className="text-destructive">*</span>
               </label>
-              <Input
-                type="time"
+              <TimePicker12
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="h-9 w-full"
+                onChange={setStartTime}
               />
             </div>
 
@@ -217,11 +206,9 @@ export function AddEntryRow({
               <label className={labelClass}>
                 End Time <span className="text-destructive">*</span>
               </label>
-              <Input
-                type="time"
+              <TimePicker12
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="h-9 w-full"
+                onChange={setEndTime}
               />
             </div>
 
@@ -231,12 +218,16 @@ export function AddEntryRow({
                 <AlignLeft className="inline h-3 w-3 mr-1 -mt-0.5" />
                 Description
               </label>
-              <Input
+              <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="What did you work on? (optional)"
-                className="h-9"
-                onKeyDown={(e) => { if (e.key === 'Enter') handleSave() }}
+                rows={3}
+                className={
+                  'w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
+                  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
+                  'focus:ring-offset-1 transition-colors resize-none'
+                }
               />
             </div>
 

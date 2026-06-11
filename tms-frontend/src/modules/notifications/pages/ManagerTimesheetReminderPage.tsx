@@ -18,6 +18,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import {
   Dialog,
@@ -36,7 +37,7 @@ import type {
 
 // ── Role guard ────────────────────────────────────────────────────────────────
 
-const ALLOWED_ROLES = ['ADMIN', 'MANAGER', 'HR'] as const
+const ALLOWED_ROLES = ['ADMIN', 'MANAGER', 'HR', 'HR_MANAGER', 'DIRECTOR'] as const
 
 // ── Week helpers ──────────────────────────────────────────────────────────────
 
@@ -478,25 +479,20 @@ function ManagerTimesheetReminderContent({ managerId }: { managerId: string }) {
           </div>
 
           {/* Status filter */}
-          <div className="relative">
-            <select
+          <div className="w-48">
+            <AppSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
-              className={cn(
-                'h-9 w-full sm:w-48 appearance-none rounded-lg border border-input bg-background',
-                'px-3 pr-8 text-sm',
-                'focus:outline-none focus:ring-2 focus:ring-ring',
-                'transition-all duration-200',
-              )}
-            >
-              <option value="ALL">All Statuses</option>
-              {(Object.keys(STATUS_CONFIG) as EmployeeTimesheetStatus[]).map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_CONFIG[s].label}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              onChange={(v) => setStatusFilter(String(v) as StatusFilter)}
+              options={[
+                { value: 'ALL', label: 'All Statuses' },
+                ...(Object.keys(STATUS_CONFIG) as EmployeeTimesheetStatus[]).map((s) => ({
+                  value: s,
+                  label: STATUS_CONFIG[s].label,
+                })),
+              ]}
+              isSearchable={false}
+              size="sm"
+            />
           </div>
         </div>
       )}

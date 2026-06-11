@@ -1,6 +1,8 @@
 package com.company.tms.timesheet.service;
 
 import com.company.tms.exception.ResourceNotFoundException;
+import com.company.tms.exception.ForbiddenException;
+import com.company.tms.exception.ValidationException;
 import com.company.tms.timesheet.dto.TimeEntryCreateRequest;
 import com.company.tms.timesheet.dto.TimeEntryResponse;
 import com.company.tms.timesheet.dto.TimeEntryUpdateRequest;
@@ -9,6 +11,7 @@ import com.company.tms.timesheet.entity.Timesheet;
 import com.company.tms.timesheet.mapper.TimesheetMapper;
 import com.company.tms.timesheet.repository.TimeEntryRepository;
 import com.company.tms.timesheet.validator.TimesheetValidator;
+import com.company.tms.user.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -32,6 +35,7 @@ public class TimeEntryService {
     private final TimesheetService timesheetService;
     private final TimesheetMapper timesheetMapper;
     private final TimesheetValidator timesheetValidator;
+    private final UserRepository userRepository;
 
     /**
      * Creates a new time entry after validating:
@@ -48,7 +52,19 @@ public class TimeEntryService {
 
         Timesheet timesheet = timesheetService.getExistingTimesheet(request.getTimesheetId());
         timesheetValidator.validateTimesheetIsEditable(timesheet);
-        timesheetValidator.validateUserAssignedToProject(request.getUserId(), request.getProjectId());
+
+        // Validate userId in the request matches the timesheet owner
+        if (!request.getUserId().equals(timesheet.getUserId())) {
+            throw new ForbiddenException("Cannot log time entries on another user's timesheet.");
+        }
+
+        // Validate workDate falls within the timesheet's week range
+        if (request.getWorkDate().isBefore(timesheet.getWeekStartDate())
+                || request.getWorkDate().isAfter(timesheet.getWeekEndDate())) {
+            throw new ValidationException("Work date " + request.getWorkDate()
+                    + " is outside the timesheet week (" + timesheet.getWeekStartDate()
+                    + " to " + timesheet.getWeekEndDate() + ").");
+        }
         timesheetValidator.validateEndTimeAfterStartTime(request.getStartTime(), request.getEndTime());
 
         int durationMinutes = calculateDurationMinutes(request.getStartTime(), request.getEndTime());
@@ -137,5 +153,21 @@ public class TimeEntryService {
     private TimeEntry getExistingTimeEntry(Long id) {
         return timeEntryRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TimeEntry", "id", id));
+    }
+
+    /**
+     * Returns true when the given email belongs to the owner of the specified time entry.
+     * Used in @PreAuthorize SpEL expressions.
+     */
+    public boolean isOwnerOfTimeEntry(String userEmail, Long timeEntryId) {
+        try {
+            TimeEntry entry = timeEntryRepository.findById(timeEntryId).orElse(null);
+            if (entry == null) return false;
+            return userRepository.findByEmail(userEmail)
+                    .map(u -> u.getId().equals(entry.getUserId()))
+                    .orElse(false);
+        } catch (Exception e) {
+            return false;
+        }
     }
 }

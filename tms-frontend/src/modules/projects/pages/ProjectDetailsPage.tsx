@@ -9,6 +9,7 @@ import {
   Building2,
   User,
   Hash,
+  TrendingUp,
 } from 'lucide-react'
 
 import { Button } from '@/components/ui/Button'
@@ -86,6 +87,7 @@ export default function ProjectDetailsPage() {
     (authUser?.roleName === 'MANAGER' || authUser?.roleName === 'HR_MANAGER') && project?.projectManagerId === currentUserId
   const canModify = authUser?.roleName === 'ADMIN' || authUser?.roleName === 'DIRECTOR' || isOwningManager
   const canManageTeam = authUser?.roleName === 'ADMIN' || authUser?.roleName === 'DIRECTOR' || isOwningManager
+  const canViewUtilization = authUser?.roleName === 'ADMIN' || authUser?.roleName === 'DIRECTOR' || isOwningManager
 
   const projectId = id ? parseInt(id, 10) : null
 
@@ -236,6 +238,16 @@ export default function ProjectDetailsPage() {
               >
                 <RefreshCw className="h-4 w-4" />
               </Button>
+              {canViewUtilization && (
+                <Button
+                  variant="outline"
+                  onClick={() => navigate(`/projects/${project.id}/utilization`)}
+                  className="gap-2 border-emerald-500/40 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-400 dark:hover:bg-emerald-900/20"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Utilization
+                </Button>
+              )}
               {canModify && (
                 <Button
                   onClick={() => setEditOpen(true)}

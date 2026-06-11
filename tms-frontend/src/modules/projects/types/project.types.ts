@@ -86,3 +86,50 @@ export interface SpringPage<T> {
   numberOfElements: number
   empty: boolean
 }
+
+// ── Project Utilization ───────────────────────────────────────────────────────
+
+/** Mirrors ProjectUtilizationResponse.java — null fields mean "N/A" (no estimation). */
+export interface ProjectUtilizationResponse {
+  projectId: number
+  projectName: string
+  projectStatus: string
+  // Hours
+  totalEstimatedHours: number | null
+  totalLoggedHours: number
+  remainingHours: number | null
+  // Percentages
+  utilizationPercentage: number | null
+  completionPercentage: number
+  timeElapsedPercentage: number | null
+  // Tasks
+  totalTasks: number
+  completedTasks: number
+  // Health: GREEN | YELLOW | RED | N_A
+  healthStatus: 'GREEN' | 'YELLOW' | 'RED' | 'N_A'
+}
+
+export interface HoursByUserEntry {
+  userId: string
+  userName: string | null
+  hours: number
+}
+
+export interface HoursByTaskEntry {
+  taskId: number
+  taskTitle: string | null
+  hours: number
+}
+
+export interface HoursByWeekEntry {
+  weekLabel: string  // e.g. "2026-W13"
+  hours: number
+}
+
+/** Mirrors ProjectBreakdownResponse.java */
+export interface ProjectBreakdownResponse {
+  projectId: number
+  hoursByUser: HoursByUserEntry[]
+  hoursByTask: HoursByTaskEntry[]
+  hoursByWeek: HoursByWeekEntry[]
+}

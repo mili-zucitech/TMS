@@ -6,64 +6,83 @@ import ReactFlow, {
   Handle,
   MiniMap,
   Position,
-  addEdge,
-  useEdgesState,
-  useNodesState,
-  useReactFlow,
-  type Connection,
+  ReactFlowProvider,
   type Edge,
   type Node,
 } from 'reactflow'
 import 'reactflow/dist/style.css'
 
-import type { OrganizationDepartment } from '../types/organization.types'
+import type { HierarchyDepartment } from '../types/organization.types'
 import { DeptFlowNode, type DeptFlowNodeData } from './DeptFlowNode'
+import { MgrFlowNode, type MgrFlowNodeData } from './MgrFlowNode'
 import { EmpFlowNode, type EmpFlowNodeData } from './EmpFlowNode'
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const ROOT_X       = 0
-const ROOT_Y       = 0
-const DEPT_Y       = 160
-const EMP_Y        = 360
-const DEPT_W       = 260
-const EMP_W        = 220
-const EMP_GAP      = 20
-const DEPT_MIN_W   = DEPT_W
+const ROOT_Y    = 0
+const DEPT_Y    = 180
+const MGR_Y     = 380
+const EMP_Y     = 570
 
-// ── Node/edge builders ────────────────────────────────────────────────────────
+const DEPT_W    = 240
+const MGR_W     = 220
+const EMP_W     = 200
+
+const H_GAP     = 18
+const DEPT_GAP  = 64
+
+// ── Graph builder ─────────────────────────────────────────────────────────────
 
 function buildGraph(
-  departments: OrganizationDepartment[],
-  collapsed: Record<number, boolean>,
-  onToggle: (id: string, newCollapsed: boolean) => void,
+  hierarchy: HierarchyDepartment[],
+  collapsedDepts: Record<number, boolean>,
+  collapsedMgrs: Record<string, boolean>,
+  onToggleDept: (nodeId: string, collapsed: boolean) => void,
+  onToggleMgr:  (nodeId: string, collapsed: boolean) => void,
 ) {
   const nodes: Node[] = []
-  const edges: Edge[] = []
+  const edges: Edge[]  = []
 
-  // Root node
-  const totalEmps = departments.reduce((n, d) => n + d.employees.length, 0)
+  const totalEmps = hierarchy.reduce(
+    (n, d) => n + d.managers.reduce((m, mg) => m + mg.directReports.length, 0) + d.unassigned.length,
+    0,
+  )
+
   nodes.push({
     id: 'root',
     type: 'root',
-    position: { x: ROOT_X, y: ROOT_Y },
-    data: { totalDepts: departments.length, totalEmps },
+    position: { x: 0, y: ROOT_Y },
+    data: { totalDepts: hierarchy.length, totalEmps },
     draggable: false,
   })
 
-  // Calculate total width to centre deparments
-  const deptBlockWidths = departments.map((dept) => {
-    const empCount = dept.employees.length
-    if (empCount === 0) return DEPT_MIN_W
-    return Math.max(DEPT_MIN_W, empCount * EMP_W + (empCount - 1) * EMP_GAP)
-  })
-  const totalWidth = deptBlockWidths.reduce((a, b) => a + b + 40, 0) - 40
+  // ── Bottom-up span helpers ──
+  function mgrSpan(mgrNodeId: string, reportCount: number): number {
+    if (collapsedMgrs[mgrNodeId] ?? false) return MGR_W
+    if (reportCount === 0) return MGR_W
+    return Math.max(MGR_W, reportCount * EMP_W + (reportCount - 1) * H_GAP)
+  }
+
+  function deptSpan(dept: HierarchyDepartment): number {
+    if (collapsedDepts[dept.id] ?? false) return DEPT_W
+    const childSpans = [
+      ...dept.managers.map((mg) => mgrSpan(`mgr-${dept.id}-${mg.user.id}`, mg.directReports.length)),
+      ...(dept.unassigned.length > 0 ? [mgrSpan(`mgr-${dept.id}-unassigned`, dept.unassigned.length)] : []),
+    ]
+    if (childSpans.length === 0) return DEPT_W
+    return Math.max(DEPT_W, childSpans.reduce((a, b) => a + b, 0) + (childSpans.length - 1) * H_GAP)
+  }
+
+  const deptSpans = hierarchy.map((d) => deptSpan(d))
+  const totalWidth = deptSpans.reduce((a, b) => a + b, 0) + (hierarchy.length - 1) * DEPT_GAP
   let curX = -totalWidth / 2
 
-  departments.forEach((dept, di) => {
-    const blockW = deptBlockWidths[di]
-    const deptX  = curX + (blockW - DEPT_W) / 2
+  hierarchy.forEach((dept, di) => {
+    const span   = deptSpans[di]
     const deptId = `dept-${dept.id}`
-    const isCollapsed = collapsed[dept.id] ?? false
+    const isCollapsedDept = collapsedDepts[dept.id] ?? false
+    const deptX  = curX + span / 2 - DEPT_W / 2
+
+    const allMemberCount = dept.managers.reduce((n, mg) => n + mg.directReports.length, 0) + dept.unassigned.length
 
     nodes.push({
       id: deptId,
@@ -72,10 +91,11 @@ function buildGraph(
       data: {
         name: dept.name,
         description: dept.description,
-        employeeCount: dept.employees.length,
-        collapsed: isCollapsed,
+        managerCount: dept.managers.length,
+        totalCount: allMemberCount,
+        collapsed: isCollapsedDept,
         nodeId: deptId,
-        onToggle,
+        onToggle: onToggleDept,
       } satisfies DeptFlowNodeData,
       draggable: false,
     })
@@ -88,28 +108,84 @@ function buildGraph(
       style: { stroke: 'rgb(52 211 153)', strokeWidth: 2 },
     })
 
-    if (!isCollapsed) {
-      dept.employees.forEach((emp, ei) => {
-        const empX = curX + ei * (EMP_W + EMP_GAP)
-        const empId = `emp-${emp.id}`
+    if (!isCollapsedDept) {
+      type ChildEntry =
+        | { kind: 'mgr'; mgrIndex: number }
+        | { kind: 'unassigned' }
+
+      const children: ChildEntry[] = [
+        ...dept.managers.map((_, i) => ({ kind: 'mgr' as const, mgrIndex: i })),
+        ...(dept.unassigned.length > 0 ? [{ kind: 'unassigned' as const }] : []),
+      ]
+
+      let mgrCurX = curX
+
+      children.forEach((child) => {
+        const isMgr = child.kind === 'mgr'
+        const mgrUser = isMgr ? dept.managers[child.mgrIndex].user : null
+        const reports  = isMgr ? dept.managers[child.mgrIndex].directReports : dept.unassigned
+        const mgrNodeId = isMgr ? `mgr-${dept.id}-${mgrUser!.id}` : `mgr-${dept.id}-unassigned`
+        const span = mgrSpan(mgrNodeId, reports.length)
+        const mgrX = mgrCurX + span / 2 - MGR_W / 2
+        const isCollapsedMgr = collapsedMgrs[mgrNodeId] ?? false
+
         nodes.push({
-          id: empId,
-          type: 'emp',
-          position: { x: empX, y: EMP_Y },
-          data: { employee: emp } satisfies EmpFlowNodeData,
+          id: mgrNodeId,
+          type: 'mgr',
+          position: { x: mgrX, y: MGR_Y },
+          data: {
+            user: isMgr ? { ...mgrUser! } : {
+              id: `unassigned-${dept.id}`,
+              employeeId: '',
+              name: 'Unmanaged',
+              email: '',
+              designation: 'No manager assigned',
+              status: 'ACTIVE' as const,
+              roleName: 'EMPLOYEE',
+            },
+            reportCount: reports.length,
+            collapsed: isCollapsedMgr,
+            nodeId: mgrNodeId,
+            onToggle: onToggleMgr,
+          } satisfies MgrFlowNodeData,
           draggable: false,
         })
+
         edges.push({
-          id: `${deptId}-${empId}`,
+          id: `${deptId}-${mgrNodeId}`,
           source: deptId,
-          target: empId,
+          target: mgrNodeId,
           type: 'smoothstep',
-          style: { stroke: 'rgb(52 211 153)', strokeWidth: 2 },
+          style: { stroke: 'rgb(99 102 241)', strokeWidth: 1.5 },
         })
+
+        if (!isCollapsedMgr && reports.length > 0) {
+          let empCurX = mgrCurX
+          reports.forEach((emp) => {
+            const empId = `emp-${emp.id}`
+            nodes.push({
+              id: empId,
+              type: 'emp',
+              position: { x: empCurX, y: EMP_Y },
+              data: { employee: emp } satisfies EmpFlowNodeData,
+              draggable: false,
+            })
+            edges.push({
+              id: `${mgrNodeId}-${empId}`,
+              source: mgrNodeId,
+              target: empId,
+              type: 'smoothstep',
+              style: { stroke: 'hsl(var(--border))', strokeWidth: 1.5 },
+            })
+            empCurX += EMP_W + H_GAP
+          })
+        }
+
+        mgrCurX += span + H_GAP
       })
     }
 
-    curX += blockW + 40
+    curX += span + DEPT_GAP
   })
 
   return { nodes, edges }
@@ -131,24 +207,22 @@ function RootNode({ data }: { data: { totalDepts: number; totalEmps: number } })
   )
 }
 
-// ── Registered node types (stable reference) ──────────────────────────────────
+// ── Stable node type map ──────────────────────────────────────────────────────
 
 const NODE_TYPES = {
   root: RootNode,
   dept: DeptFlowNode,
+  mgr:  MgrFlowNode,
   emp:  EmpFlowNode,
 }
 
-// ── Inner chart (needs ReactFlow context for fitView) ─────────────────────────
+// ── Inner chart ───────────────────────────────────────────────────────────────
 
-function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
-  const { fitView } = useReactFlow()
-  const [collapsed, setCollapsed] = useState<Record<number, boolean>>({})
+function FlowInner({ hierarchy }: { hierarchy: HierarchyDepartment[] }) {
+  const [collapsedDepts, setCollapsedDepts] = useState<Record<number, boolean>>({})
+  const [collapsedMgrs,  setCollapsedMgrs]  = useState<Record<string, boolean>>({})
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // Boost pinch-zoom speed by intercepting ctrlKey+wheel before d3-zoom handles it,
-  // then re-dispatching a boosted synthetic event to d3's own element so its internal
-  // transform stays in sync (fixes zoom resetting when panning after zooming).
   const PINCH_SPEED = 3.5
   useEffect(() => {
     const el = containerRef.current
@@ -182,93 +256,78 @@ function FlowInner({ departments }: { departments: OrganizationDepartment[] }) {
     return () => el.removeEventListener('wheel', handler, { capture: true })
   }, [])
 
-  const handleToggle = useCallback((nodeId: string, newCollapsed: boolean) => {
+  const handleToggleDept = useCallback((nodeId: string, collapsed: boolean) => {
     const deptId = parseInt(nodeId.replace('dept-', ''), 10)
-    setCollapsed((prev) => ({ ...prev, [deptId]: newCollapsed }))
-    // Re-fit after layout changes
-    setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50)
-  }, [fitView])
+    setCollapsedDepts((prev) => ({ ...prev, [deptId]: collapsed }))
+  }, [])
 
-  const { nodes: initNodes, edges: initEdges } = useMemo(
-    () => buildGraph(departments, collapsed, handleToggle),
-    [departments, collapsed, handleToggle],
-  )
+  const handleToggleMgr = useCallback((nodeId: string, collapsed: boolean) => {
+    setCollapsedMgrs((prev) => ({ ...prev, [nodeId]: collapsed }))
+  }, [])
 
-  const [, , onNodesChange] = useNodesState(initNodes)
-  const [, setEdges, onEdgesChange] = useEdgesState(initEdges)
-
-  // Sync when departments or collapsed changes
-  const { nodes: latestNodes, edges: latestEdges } = useMemo(
-    () => buildGraph(departments, collapsed, handleToggle),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [departments, collapsed],
-  )
-
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges],
+  const { nodes: graphNodes, edges: graphEdges } = useMemo(
+    () => buildGraph(hierarchy, collapsedDepts, collapsedMgrs, handleToggleDept, handleToggleMgr),
+    [hierarchy, collapsedDepts, collapsedMgrs, handleToggleDept, handleToggleMgr],
   )
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%' }}>
-    <ReactFlow
-      nodes={latestNodes}
-      edges={latestEdges}
-      onNodesChange={onNodesChange}
-      onEdgesChange={onEdgesChange}
-      onConnect={onConnect}
-      nodeTypes={NODE_TYPES}
-      fitView
-      fitViewOptions={{ padding: 0.15, duration: 600 }}
-      minZoom={0.4}
-      maxZoom={2.0}
-      zoomOnScroll={false}
-      zoomOnPinch
-      panOnDrag
-      panOnScroll
-      panOnScrollMode={'free' as never}
-      panOnScrollSpeed={1.5}
-      proOptions={{ hideAttribution: true }}
-      className="rounded-xl"
-    >
-      <Background
-        variant={BackgroundVariant.Dots}
-        gap={20}
-        size={1}
-        className="!bg-muted/30"
-        color="hsl(var(--border))"
-      />
-      <Controls
-        showInteractive={false}
-        className="!bg-card !border !border-border !shadow-sm !rounded-xl overflow-hidden [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground [&>button:hover]:!bg-accent"
-      />
-      <MiniMap
-        nodeColor={(n) =>
-          n.type === 'root' || n.type === 'dept'
-            ? 'rgb(16 185 129)'
-            : 'hsl(var(--muted))'
-        }
-        maskColor="hsl(var(--background) / 0.7)"
-        className="!bg-card !border !border-border !rounded-xl !shadow-sm"
-      />
-    </ReactFlow>
+      <ReactFlow
+        nodes={graphNodes}
+        edges={graphEdges}
+        onConnect={() => {}}
+        nodeTypes={NODE_TYPES}
+        fitView
+        fitViewOptions={{ padding: 0.15, duration: 600 }}
+        minZoom={0.2}
+        maxZoom={2.0}
+        zoomOnScroll={false}
+        zoomOnPinch
+        panOnDrag
+        panOnScroll
+        panOnScrollMode={'free' as never}
+        panOnScrollSpeed={1.5}
+        proOptions={{ hideAttribution: true }}
+        className="rounded-xl"
+      >
+        <Background
+          variant={BackgroundVariant.Dots}
+          gap={20}
+          size={1}
+          className="!bg-muted/30"
+          color="hsl(var(--border))"
+        />
+        <Controls
+          showInteractive={false}
+          className="!bg-card !border !border-border !shadow-sm !rounded-xl overflow-hidden [&>button]:!bg-card [&>button]:!border-border [&>button]:!text-foreground [&>button:hover]:!bg-accent"
+        />
+        <MiniMap
+          nodeColor={(n) =>
+            n.type === 'root' || n.type === 'dept'
+              ? 'rgb(16 185 129)'
+              : n.type === 'mgr'
+              ? 'rgb(99 102 241)'
+              : 'hsl(var(--muted))'
+          }
+          maskColor="hsl(var(--background) / 0.7)"
+          className="!bg-card !border !border-border !rounded-xl !shadow-sm"
+        />
+      </ReactFlow>
     </div>
   )
 }
 
 // ── Export ────────────────────────────────────────────────────────────────────
 
-import { ReactFlowProvider } from 'reactflow'
-
 interface OrgChartProps {
-  departments: OrganizationDepartment[]
+  hierarchy: HierarchyDepartment[]
 }
 
-export function OrgChart({ departments }: OrgChartProps) {
+export function OrgChart({ hierarchy }: OrgChartProps) {
   return (
     <ReactFlowProvider>
       <div style={{ width: '100%', height: '100%' }}>
-        <FlowInner departments={departments} />
+        <FlowInner hierarchy={hierarchy} />
       </div>
     </ReactFlowProvider>
   )

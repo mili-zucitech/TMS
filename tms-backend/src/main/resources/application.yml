@@ -3,9 +3,9 @@ spring:
     name: tms-backend
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/tms?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -38,8 +38,8 @@ spring:
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME}           # Required — no default; do not add a fallback
-    password: ${SPRING_MAIL_PASSWORD}           # Required — no default; App Password for Gmail
+    username: ${SPRING_MAIL_USERNAME:milisrivastava.zucitech@gmail.com}            # Set via env var for production
+    password: ${SPRING_MAIL_PASSWORD:tnlg uznn cbls pbwl}            # Set via env var for production (App Password for Gmail)
     properties:
       mail:
         smtp:

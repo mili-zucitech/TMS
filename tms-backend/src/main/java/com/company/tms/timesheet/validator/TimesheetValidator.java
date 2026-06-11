@@ -44,7 +44,9 @@ public class TimesheetValidator {
      */
     public void validateTimesheetIsEditable(Timesheet timesheet) {
         TimesheetStatus status = timesheet.getStatus();
-        if (status == TimesheetStatus.SUBMITTED || status == TimesheetStatus.LOCKED) {
+        if (status == TimesheetStatus.SUBMITTED
+                || status == TimesheetStatus.APPROVED
+                || status == TimesheetStatus.LOCKED) {
             throw new TimesheetLockedException(
                     "Timesheet " + timesheet.getId() + " cannot be modified in status: " + status);
         }

@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useForm, useWatch, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { ListTodo } from 'lucide-react'
@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { AppSelect } from '@/components/ui/Select'
 import type { TaskCreateRequest, TaskPriority, TaskStatus } from '../types/task.types'
 import projectService from '@/modules/projects/services/projectService'
 import { MultiSelectMembers, type MemberOption } from './MultiSelectMembers'
@@ -59,10 +60,6 @@ interface TaskCreateModalProps {
 //  Shared styles 
 const fieldClass = 'space-y-1.5'
 const errorClass = 'text-xs text-destructive mt-1'
-const selectClass =
-  'flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors disabled:opacity-50'
 
 //  Component 
 export function TaskCreateModal({
@@ -205,14 +202,22 @@ export function TaskCreateModal({
             {/* Project */}
             <div className={fieldClass}>
               <Label htmlFor="projectId">Project *</Label>
-              <select id="projectId" className={selectClass} {...register('projectId')}>
-                <option value="">— Select project —</option>
-                {projects.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+              <Controller
+                name="projectId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="projectId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    error={!!errors.projectId}
+                    options={[
+                      { value: '', label: '— Select project —' },
+                      ...projects.map((p) => ({ value: p.id, label: p.name })),
+                    ]}
+                  />
+                )}
+              />
               {errors.projectId && <p className={errorClass}>{errors.projectId.message}</p>}
             </div>
 
@@ -240,26 +245,50 @@ export function TaskCreateModal({
             {/* Priority */}
             <div className={fieldClass}>
               <Label htmlFor="priority">Priority</Label>
-              <select id="priority" className={selectClass} {...register('priority')}>
-                <option value="">— Select priority —</option>
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-                <option value="CRITICAL">Critical</option>
-              </select>
+              <Controller
+                name="priority"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="priority"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: '— Select priority —' },
+                      { value: 'LOW', label: 'Low' },
+                      { value: 'MEDIUM', label: 'Medium' },
+                      { value: 'HIGH', label: 'High' },
+                      { value: 'CRITICAL', label: 'Critical' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Status */}
             <div className={fieldClass}>
               <Label htmlFor="status">Status</Label>
-              <select id="status" className={selectClass} {...register('status')}>
-                <option value="">— Select status —</option>
-                <option value="TODO">To Do</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="IN_REVIEW">In Review</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="BLOCKED">Blocked</option>
-              </select>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="status"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: '— Select status —' },
+                      { value: 'TODO', label: 'To Do' },
+                      { value: 'IN_PROGRESS', label: 'In Progress' },
+                      { value: 'IN_REVIEW', label: 'In Review' },
+                      { value: 'COMPLETED', label: 'Completed' },
+                      { value: 'BLOCKED', label: 'Blocked' },
+                    ]}
+                  />
+                )}
+              />
             </div>
 
             {/* Estimated Hours */}
@@ -309,7 +338,7 @@ export function TaskCreateModal({
                 id="description"
                 rows={3}
                 placeholder="Describe the task"
-                className={`${selectClass} resize-none h-auto`}
+                className="flex w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-colors disabled:opacity-50 resize-none h-auto"
                 {...register('description')}
               />
               {errors.description && (

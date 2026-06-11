@@ -1,6 +1,5 @@
 package com.company.tms.leave.controller;
 
-import com.company.tms.leave.dto.LeaveApproveRequest;
 import com.company.tms.leave.dto.LeaveRejectRequest;
 import com.company.tms.leave.dto.LeaveRequestCreateRequest;
 import com.company.tms.leave.dto.LeaveRequestResponse;
@@ -17,7 +16,6 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
-
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/leaves")
@@ -56,7 +54,7 @@ public class LeaveController {
      * Returns all leave requests for a user.
      */
     @GetMapping("/user/{userId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR') or authentication.name == @userService.getUserEmailById(#userId)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or authentication.name == @userService.getUserEmailById(#userId) or @userService.isReportingManager(authentication.name, #userId)")
     public ResponseEntity<ApiResponse<List<LeaveRequestResponse>>> getLeaveRequestsByUser(
             @PathVariable UUID userId) {
         log.debug("GET /api/v1/leaves/user/{}", userId);
@@ -68,7 +66,7 @@ public class LeaveController {
      * Returns all leave requests for direct reportees of the given manager.
      */
     @GetMapping("/manager/{managerId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'MANAGER', 'DIRECTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR', 'HR_MANAGER', 'DIRECTOR') or authentication.name == @userService.getUserEmailById(#managerId)")
     public ResponseEntity<ApiResponse<List<LeaveRequestResponse>>> getTeamLeaveRequests(
             @PathVariable UUID managerId) {
         log.debug("GET /api/v1/leaves/manager/{}", managerId);
@@ -80,27 +78,25 @@ public class LeaveController {
      * Approves a PENDING leave request. MANAGER/ADMIN only.
      */
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or @leaveService.isReportingManagerOfLeave(authentication.name, #id)")
     public ResponseEntity<ApiResponse<LeaveRequestResponse>> approveLeaveRequest(
-            @PathVariable Long id,
-            @RequestBody(required = false) LeaveApproveRequest request) {
+            @PathVariable Long id) {
         log.debug("POST /api/v1/leaves/{}/approve", id);
-        UUID approverId = (request != null) ? request.getApprovedBy() : null;
         return ResponseEntity.ok(ApiResponse.success(
-                leaveService.approveLeaveRequest(id, approverId), "Leave request approved"));
+                leaveService.approveLeaveRequest(id), "Leave request approved"));
     }
 
     /**
      * Rejects a PENDING leave request with a mandatory reason. MANAGER/ADMIN only.
      */
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'MANAGER', 'DIRECTOR')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or @leaveService.isReportingManagerOfLeave(authentication.name, #id)")
     public ResponseEntity<ApiResponse<LeaveRequestResponse>> rejectLeaveRequest(
             @PathVariable Long id,
             @Valid @RequestBody LeaveRejectRequest request) {
         log.debug("POST /api/v1/leaves/{}/reject", id);
         return ResponseEntity.ok(ApiResponse.success(
-                leaveService.rejectLeaveRequest(id, request.getApprovedBy(), request.getRejectionReason()),
+                leaveService.rejectLeaveRequest(id, request.getRejectionReason()),
                 "Leave request rejected"));
     }
 
@@ -108,7 +104,7 @@ public class LeaveController {
      * Cancels a PENDING leave request.
      */
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("isAuthenticated()")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @leaveService.isOwnerOfLeave(authentication.name, #id)")
     public ResponseEntity<ApiResponse<LeaveRequestResponse>> cancelLeaveRequest(@PathVariable Long id) {
         log.debug("POST /api/v1/leaves/{}/cancel", id);
         return ResponseEntity.ok(ApiResponse.success(

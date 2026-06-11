@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { FolderEdit } from 'lucide-react'
@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import type { ProjectResponse, ProjectUpdateRequest, ProjectStatus } from '../types/project.types'
 
@@ -64,10 +65,6 @@ interface ProjectEditModalProps {
 
 const fieldClass = 'space-y-1.5'
 const errorClass = 'text-xs text-destructive mt-1'
-const selectClass =
-  'flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors disabled:opacity-50'
 
 // ── Component ─────────────────────────────────────────────────
 
@@ -76,6 +73,7 @@ export function ProjectEditModal({ project, open, onOpenChange, onSubmit, depart
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -166,14 +164,27 @@ export function ProjectEditModal({ project, open, onOpenChange, onSubmit, depart
             {/* Status */}
             <div className={fieldClass}>
               <Label htmlFor="edit-status">Status</Label>
-              <select id="edit-status" className={selectClass} {...register('status')}>
-                <option value="">— Select status —</option>
-                <option value="PLANNED">Planned</option>
-                <option value="ACTIVE">Active</option>
-                <option value="ON_HOLD">On Hold</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
+              <Controller
+                name="status"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-status"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    error={!!errors.status}
+                    isSearchable={false}
+                    options={[
+                      { value: '', label: '— Select status —' },
+                      { value: 'PLANNED', label: 'Planned' },
+                      { value: 'ACTIVE', label: 'Active' },
+                      { value: 'ON_HOLD', label: 'On Hold' },
+                      { value: 'COMPLETED', label: 'Completed' },
+                      { value: 'CANCELLED', label: 'Cancelled' },
+                    ]}
+                  />
+                )}
+              />
               {errors.status && <p className={errorClass}>{errors.status.message}</p>}
             </div>
 
@@ -206,18 +217,22 @@ export function ProjectEditModal({ project, open, onOpenChange, onSubmit, depart
             {/* Project Manager */}
             <div className={fieldClass}>
               <Label htmlFor="edit-projectManagerId">Project Manager</Label>
-              <select
-                id="edit-projectManagerId"
-                className={cn(selectClass, errors.projectManagerId ? 'border-destructive' : '')}
-                {...register('projectManagerId')}
-              >
-                <option value="">— Select manager —</option>
-                {managers.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name} ({m.employeeId})
-                  </option>
-                ))}
-              </select>
+              <Controller
+                name="projectManagerId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-projectManagerId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(String(v))}
+                    error={!!errors.projectManagerId}
+                    options={[
+                      { value: '', label: '— Select manager —' },
+                      ...managers.map((m) => ({ value: m.id, label: `${m.name} (${m.employeeId})` })),
+                    ]}
+                  />
+                )}
+              />
               {errors.projectManagerId && (
                 <p className={errorClass}>{errors.projectManagerId.message}</p>
               )}
@@ -226,16 +241,22 @@ export function ProjectEditModal({ project, open, onOpenChange, onSubmit, depart
             {/* Department */}
             <div className={fieldClass}>
               <Label htmlFor="edit-departmentId">Department</Label>
-              <select
-                id="edit-departmentId"
-                className={cn(selectClass, errors.departmentId ? 'border-destructive' : '')}
-                {...register('departmentId')}
-              >
-                <option value="">— Select department —</option>
-                {departments.map((d) => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
+              <Controller
+                name="departmentId"
+                control={control}
+                render={({ field }) => (
+                  <AppSelect
+                    inputId="edit-departmentId"
+                    value={field.value ?? ''}
+                    onChange={(v) => field.onChange(v)}
+                    error={!!errors.departmentId}
+                    options={[
+                      { value: '', label: '— Select department —' },
+                      ...departments.map((d) => ({ value: d.id, label: d.name })),
+                    ]}
+                  />
+                )}
+              />
               {errors.departmentId && (
                 <p className={errorClass}>{errors.departmentId.message}</p>
               )}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,6 +13,7 @@ import {
   FolderOpen,
   SunMedium,
   CalendarX2,
+  Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -37,12 +38,17 @@ import {
   formatDuration,
   formatShortDate,
   calcDurationMinutes,
-  stripSeconds,
+  format12h,
   getWeekStart,
   getWeekDates,
   toDateString,
+  splitOvertimeEntries,
 } from '../../utils/timesheetHelpers'
 import type { TimeEntryResponse } from '../../types/timesheet.types'
+import projectService from '@/modules/projects/services/projectService'
+import type { ProjectResponse } from '@/modules/projects/types/project.types'
+import taskService from '@/modules/tasks/services/taskService'
+import type { TaskResponse } from '@/modules/tasks/types/task.types'
 import { cn } from '@/utils/cn'
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -52,16 +58,19 @@ function EntryRow({
   entry,
   projectNames,
   taskNames,
+  isOvertime = false,
 }: {
   entry: TimeEntryResponse
   projectNames: Record<number, string>
   taskNames: Record<number, string>
+  isOvertime?: boolean
 }) {
+  const [descExpanded, setDescExpanded] = useState(false)
   const duration =
     entry.durationMinutes ?? calcDurationMinutes(entry.startTime, entry.endTime)
 
   return (
-    <tr className="border-b border-border/40 hover:bg-muted/20 transition-colors">
+    <tr className={cn('border-b border-border/40 hover:bg-muted/20 transition-colors', isOvertime && 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08]')}>
       <td className="px-4 py-2.5 text-sm">{projectNames[entry.projectId] ?? `#${entry.projectId}`}</td>
       <td className="px-4 py-2.5 text-sm text-muted-foreground">
         {entry.taskId
@@ -70,16 +79,45 @@ function EntryRow({
             ? <span className="italic">{entry.taskNote}</span>
             : '—'}
       </td>
-      <td className="px-4 py-2.5 text-sm font-mono">{stripSeconds(entry.startTime)}</td>
-      <td className="px-4 py-2.5 text-sm font-mono">{stripSeconds(entry.endTime)}</td>
-      <td className="px-4 py-2.5 text-center">
+      <td className="px-4 py-2.5 text-sm font-mono whitespace-nowrap">{format12h(entry.startTime)}</td>
+      <td className="px-4 py-2.5 text-sm font-mono whitespace-nowrap">{format12h(entry.endTime)}</td>
+      <td className="px-4 py-2.5 text-center whitespace-nowrap">
         <span className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
           <Clock className="h-3.5 w-3.5" />
           {formatDuration(duration)}
         </span>
       </td>
-      <td className="px-4 py-2.5 text-sm text-muted-foreground max-w-[200px]">
-        <span className="truncate block">{entry.description || '—'}</span>
+      <td className="px-4 py-2.5 text-sm text-muted-foreground max-w-[220px]">
+        {entry.description ? (
+          descExpanded || entry.description.length <= 55 ? (
+            <span className="break-words">
+              {entry.description}
+              {entry.description.length > 55 && (
+                <>
+                  {' '}
+                  <button
+                    type="button"
+                    onClick={() => setDescExpanded(false)}
+                    className="text-primary/70 hover:text-primary text-xs underline underline-offset-2"
+                  >
+                    less
+                  </button>
+                </>
+              )}
+            </span>
+          ) : (
+            <span>
+              {entry.description.slice(0, 55)}&hellip;{' '}
+              <button
+                type="button"
+                onClick={() => setDescExpanded(true)}
+                className="text-primary/70 hover:text-primary text-xs underline underline-offset-2"
+              >
+                more
+              </button>
+            </span>
+          )
+        ) : '—'}
       </td>
     </tr>
   )
@@ -92,10 +130,12 @@ function MobileEntryCard({
   entry,
   projectNames,
   taskNames,
+  isOvertime = false,
 }: {
   entry: TimeEntryResponse
   projectNames: Record<number, string>
   taskNames: Record<number, string>
+  isOvertime?: boolean
 }) {
   const duration =
     entry.durationMinutes ?? calcDurationMinutes(entry.startTime, entry.endTime)
@@ -104,17 +144,17 @@ function MobileEntryCard({
     : entry.taskNote ?? '—'
 
   return (
-    <div className="rounded-lg border border-border/60 bg-card p-3 space-y-1.5">
+    <div className={cn('rounded-lg border border-border/60 bg-card p-3 space-y-1.5', isOvertime && 'bg-amber-500/[0.04]')}>
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">{projectNames[entry.projectId] ?? `#${entry.projectId}`}</span>
-        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
           <Clock className="h-3 w-3" />
           {formatDuration(duration)}
         </span>
       </div>
       <p className="text-xs text-muted-foreground">{taskLabel}</p>
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        <span className="font-mono">{stripSeconds(entry.startTime)} – {stripSeconds(entry.endTime)}</span>
+        <span className="font-mono whitespace-nowrap">{format12h(entry.startTime)} – {format12h(entry.endTime)}</span>
       </div>
       {entry.description && (
         <p className="text-xs text-muted-foreground italic">{entry.description}</p>
@@ -269,10 +309,31 @@ export default function ManagerTimesheetReviewPage() {
     [allUsers, timesheet?.userId],
   )
 
-  // For now project/task names come from the entry IDs — we show the ids with
-  // a fallback. A richer implementation would load projects/tasks lists.
-  const projectNames: Record<number, string> = useMemo(() => ({}), [])
-  const taskNames: Record<number, string> = useMemo(() => ({}), [])
+  // ── Reference data (projects & tasks) ──────────────────────────────────
+  const [allProjects, setAllProjects] = useState<ProjectResponse[]>([])
+  const [tasks, setTasks] = useState<TaskResponse[]>([])
+  const hasLoadedRef = useRef(false)
+
+  useEffect(() => {
+    if (hasLoadedRef.current) return
+    hasLoadedRef.current = true
+    Promise.all([
+      projectService.getProjects(0, 200).catch(() => ({ content: [] as ProjectResponse[] })),
+      taskService.getTasks(0, 500).catch(() => ({ content: [] as TaskResponse[] })),
+    ]).then(([pPage, tPage]) => {
+      setAllProjects(pPage.content)
+      setTasks(tPage.content)
+    })
+  }, [])
+
+  const projectNames = useMemo(
+    () => Object.fromEntries(allProjects.map((p) => [p.id, p.name])) as Record<number, string>,
+    [allProjects],
+  )
+  const taskNames = useMemo(
+    () => Object.fromEntries(tasks.map((t) => [t.id, t.title])) as Record<number, string>,
+    [tasks],
+  )
 
   // ── Week dates ─────────────────────────────────────────────────────────
   const weekDates = useMemo(() => {
@@ -498,6 +559,17 @@ export default function ManagerTimesheetReviewPage() {
               </div>
             </div>
           )}
+
+          {/* Overtime reason (if employee submitted one) */}
+          {timesheet.overtimeReason && (
+            <div className="mt-4 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/8 px-3 py-2.5 text-sm text-amber-900 dark:text-amber-400">
+              <Zap className="h-4 w-4 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-medium">Overtime Reason: </span>
+                {timesheet.overtimeReason}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Approve / Reject action bar ────────────────────────── */}
@@ -536,6 +608,8 @@ export default function ManagerTimesheetReviewPage() {
                 sum + (e.durationMinutes ?? calcDurationMinutes(e.startTime, e.endTime)),
               0,
             )
+            const { regular: regularEntries, overtime: overtimeEntries } = splitOvertimeEntries(dayEntries)
+            const overtimeMinutes = Math.max(0, dayMinutes - 480)
             const dayKind = dayKindMap[date] ?? 'work'
             const isNonWorkDay = dayKind === 'weekend' || dayKind === 'holiday'
             const leaveForDay = leaveDayMap[date]
@@ -600,10 +674,18 @@ export default function ManagerTimesheetReviewPage() {
                     )}
                   </div>
                   {dayEntries.length > 0 ? (
-                    <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 shrink-0">
-                      <Clock className="h-3.5 w-3.5" />
-                      {formatDuration(dayMinutes)}
-                    </span>
+                    <div className="flex items-center gap-2 shrink-0">
+                      {overtimeMinutes > 0 && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                          <Zap className="h-3.5 w-3.5" />
+                          {formatDuration(overtimeMinutes)} OT
+                        </span>
+                      )}
+                      <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                        <Clock className="h-3.5 w-3.5" />
+                        {formatDuration(dayMinutes)}
+                      </span>
+                    </div>
                   ) : (
                     <span className="text-xs text-muted-foreground shrink-0">
                       {isNonWorkDay ? '' : 'No entries'}
@@ -634,7 +716,7 @@ export default function ManagerTimesheetReviewPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {dayEntries.map((e) => (
+                          {regularEntries.map((e) => (
                             <EntryRow
                               key={e.id}
                               entry={e}
@@ -642,13 +724,34 @@ export default function ManagerTimesheetReviewPage() {
                               taskNames={taskNames}
                             />
                           ))}
+                          {overtimeEntries.length > 0 && (
+                            <>
+                              <tr>
+                                <td colSpan={6} className="px-4 py-1.5 bg-amber-500/[0.06] border-y border-amber-500/20">
+                                  <span className="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                    <Zap className="h-3 w-3" />
+                                    Overtime · {formatDuration(overtimeMinutes)}
+                                  </span>
+                                </td>
+                              </tr>
+                              {overtimeEntries.map((e) => (
+                                <EntryRow
+                                  key={e.id}
+                                  entry={e}
+                                  projectNames={projectNames}
+                                  taskNames={taskNames}
+                                  isOvertime
+                                />
+                              ))}
+                            </>
+                          )}
                         </tbody>
                       </table>
                     </div>
 
                     {/* Mobile cards */}
                     <div className="sm:hidden p-3 space-y-2">
-                      {dayEntries.map((e) => (
+                      {regularEntries.map((e) => (
                         <MobileEntryCard
                           key={e.id}
                           entry={e}
@@ -656,6 +759,23 @@ export default function ManagerTimesheetReviewPage() {
                           taskNames={taskNames}
                         />
                       ))}
+                      {overtimeEntries.length > 0 && (
+                        <>
+                          <div className="flex items-center gap-1.5 py-1.5 px-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                            <Zap className="h-3.5 w-3.5" />
+                            Overtime · {formatDuration(overtimeMinutes)}
+                          </div>
+                          {overtimeEntries.map((e) => (
+                            <MobileEntryCard
+                              key={e.id}
+                              entry={e}
+                              projectNames={projectNames}
+                              taskNames={taskNames}
+                              isOvertime
+                            />
+                          ))}
+                        </>
+                      )}
                     </div>
                   </>
                 )}

@@ -49,4 +49,25 @@ public interface TimeEntryRepository extends JpaRepository<TimeEntry, Long> {
             @Param("userId") UUID userId,
             @Param("workDate") LocalDate workDate,
             @Param("excludeId") Long excludeId);
+
+    // ── Project-level aggregation queries ────────────────────────────────────
+
+    /** Total minutes logged across all time entries for a project. */
+    @Query("SELECT COALESCE(SUM(te.durationMinutes), 0) FROM TimeEntry te WHERE te.projectId = :projectId")
+    Long sumDurationMinutesByProjectId(@Param("projectId") Long projectId);
+
+    /**
+     * Minutes logged only for time entries linked to an actual Task (taskId IS NOT NULL).
+     * Used as the numerator for utilization % to avoid inflation from free-text entries.
+     */
+    @Query("SELECT COALESCE(SUM(te.durationMinutes), 0) FROM TimeEntry te WHERE te.projectId = :projectId AND te.taskId IS NOT NULL")
+    Long sumDurationMinutesByProjectIdAndTaskLinked(@Param("projectId") Long projectId);
+
+    /** Total minutes logged across all time entries for a timesheet. */
+    @Query("SELECT COALESCE(SUM(te.durationMinutes), 0) FROM TimeEntry te WHERE te.timesheetId = :timesheetId")
+    int sumDurationMinutesByTimesheetId(@Param("timesheetId") Long timesheetId);
+
+    /** All time entries for a project (used for breakdown aggregation in the service layer). */
+    @Query("SELECT te FROM TimeEntry te WHERE te.projectId = :projectId ORDER BY te.workDate")
+    List<TimeEntry> findAllByProjectId(@Param("projectId") Long projectId);
 }

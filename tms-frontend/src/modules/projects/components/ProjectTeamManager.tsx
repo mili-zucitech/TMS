@@ -4,6 +4,7 @@ import { UserPlus, UserMinus, Search, Users, X } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Label } from '@/components/ui/Label'
+import { AppSelect } from '@/components/ui/Select'
 import type { UserResponse } from '@/modules/users/types/user.types'
 import { useProjectAssignments } from '../hooks/useProjectAssignments'
 import type { ProjectAssignmentRequest, ProjectRole } from '../types/project.types'
@@ -24,11 +25,6 @@ const PROJECT_ROLES: { value: ProjectRole; label: string }[] = [
 const roleLabel: Record<ProjectRole, string> = Object.fromEntries(
   PROJECT_ROLES.map(({ value, label }) => [value, label]),
 ) as Record<ProjectRole, string>
-
-const selectClass =
-  'flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors disabled:opacity-50'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -229,7 +225,7 @@ export function ProjectTeamManager({
                     setDropdownOpen(true)
                   }}
                   onFocus={() => { if (!selectedUser) setDropdownOpen(true) }}
-                  className={`${selectClass} pl-9 pr-8 cursor-text`}
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-1 transition-colors disabled:opacity-50 pl-9 pr-8 cursor-text"
                   readOnly={!!selectedUser}
                   aria-label="Search employee"
                   aria-expanded={dropdownOpen}
@@ -295,19 +291,13 @@ export function ProjectTeamManager({
             {/* Role selector */}
             <div className="space-y-1.5">
               <Label>Role</Label>
-              <select
+              <AppSelect
                 value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as ProjectRole | '')}
-                className={selectClass}
-                aria-label="Select role"
-              >
-                <option value="">— Select role —</option>
-                {PROJECT_ROLES.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => setSelectedRole(v as ProjectRole | '')}
+                options={[{ value: '', label: '— Select role —' }, ...PROJECT_ROLES]}
+                placeholder="— Select role —"
+                isSearchable={false}
+              />
             </div>
 
             {/* Allocation */}

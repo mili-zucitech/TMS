@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button'
+import { AppSelect } from '@/components/ui/Select'
 import { cn } from '@/utils/cn'
 import type { TaskStatus, TaskPriority } from '../types/task.types'
 
@@ -16,11 +17,6 @@ const PRIORITIES: { value: TaskPriority; label: string }[] = [
   { value: 'HIGH',     label: 'High' },
   { value: 'CRITICAL', label: 'Critical' },
 ]
-
-const selectClass =
-  'h-10 rounded-lg border border-input bg-background px-3 py-2 text-sm ' +
-  'ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring ' +
-  'focus:ring-offset-1 transition-colors cursor-pointer text-foreground'
 
 interface TaskFiltersProps {
   statusFilter: string
@@ -49,47 +45,34 @@ export function TaskFilters({
 
   return (
     <div className={cn('flex flex-wrap items-center gap-2', className)}>
-      <select
-        value={statusFilter}
-        onChange={(e) => onStatusChange(e.target.value)}
-        className={selectClass}
-        aria-label="Filter by status"
-      >
-        <option value="">All Statuses</option>
-        {STATUSES.map((s) => (
-          <option key={s.value} value={s.value}>
-            {s.label}
-          </option>
-        ))}
-      </select>
+      <div className="w-40">
+        <AppSelect
+          value={statusFilter}
+          onChange={(v) => onStatusChange(String(v))}
+          options={[{ value: '', label: 'All Statuses' }, ...STATUSES]}
+          placeholder="All Statuses"
+          isSearchable={false}
+        />
+      </div>
 
-      <select
-        value={priorityFilter}
-        onChange={(e) => onPriorityChange(e.target.value)}
-        className={selectClass}
-        aria-label="Filter by priority"
-      >
-        <option value="">All Priorities</option>
-        {PRIORITIES.map((p) => (
-          <option key={p.value} value={p.value}>
-            {p.label}
-          </option>
-        ))}
-      </select>
+      <div className="w-40">
+        <AppSelect
+          value={priorityFilter}
+          onChange={(v) => onPriorityChange(String(v))}
+          options={[{ value: '', label: 'All Priorities' }, ...PRIORITIES]}
+          placeholder="All Priorities"
+          isSearchable={false}
+        />
+      </div>
 
-      <select
-        value={projectFilter}
-        onChange={(e) => onProjectChange(e.target.value)}
-        className={selectClass}
-        aria-label="Filter by project"
-      >
-        <option value="">All Projects</option>
-        {projects.map((p) => (
-          <option key={p.id} value={String(p.id)}>
-            {p.name}
-          </option>
-        ))}
-      </select>
+      <div className="w-44">
+        <AppSelect
+          value={projectFilter}
+          onChange={(v) => onProjectChange(String(v))}
+          options={[{ value: '', label: 'All Projects' }, ...projects.map((p) => ({ value: String(p.id), label: p.name }))]}
+          placeholder="All Projects"
+        />
+      </div>
 
       {hasFilters && (
         <Button

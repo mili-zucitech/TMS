@@ -23,6 +23,9 @@ public class TimesheetResponse {
     private LocalDateTime approvedAt;
     private UUID approvedBy;
     private String rejectionReason;
+    private String overtimeReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** Sum of durationMinutes across all time entries for this timesheet. */
+    private int totalMinutes;
 }

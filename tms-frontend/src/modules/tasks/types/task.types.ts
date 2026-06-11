@@ -12,6 +12,7 @@ export interface TaskResponse {
   projectId: number
   assignedUserId: string | null
   createdByUserId: string | null
+  createdByUserName: string | null
   priority: TaskPriority
   status: TaskStatus
   estimatedHours: number | null

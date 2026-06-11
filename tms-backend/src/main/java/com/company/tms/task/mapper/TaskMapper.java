@@ -22,6 +22,7 @@ public interface TaskMapper {
     // Task mappings
     // -------------------------------------------------------------------------
 
+    @Mapping(target = "createdByUserName", ignore = true)
     TaskResponse toTaskResponse(Task task);
 
     @Mapping(target = "id", ignore = true)

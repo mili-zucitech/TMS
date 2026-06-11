@@ -1,6 +1,7 @@
 package com.company.tms.user.service;
 
 import com.company.tms.exception.ResourceNotFoundException;
+import com.company.tms.exception.ValidationException;
 import com.company.tms.user.dto.UserCreateRequest;
 import com.company.tms.user.dto.UserResponse;
 import com.company.tms.user.dto.UserUpdateRequest;
@@ -87,6 +88,9 @@ public class UserService {
             user.setDepartmentId(request.getDepartmentId());
         }
         if (request.getManagerId() != null) {
+            if (request.getManagerId().equals(id)) {
+                throw new ValidationException("A user cannot be their own manager.");
+            }
             user.setManagerId(request.getManagerId());
         }
         if (request.getDesignation() != null) {
@@ -198,7 +202,7 @@ public class UserService {
      * Generates the next sequential employee ID in the format EMP-XXXX.
      * Synchronized to prevent duplicate IDs under concurrent creation requests.
      */
-    private String generateNextEmployeeId() {
+    private synchronized String generateNextEmployeeId() {
         Optional<String> maxId = userRepository.findMaxEmployeeId();
         if (maxId.isEmpty()) {
             return "EMP-0001";

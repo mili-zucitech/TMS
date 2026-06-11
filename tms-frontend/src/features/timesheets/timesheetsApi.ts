@@ -4,6 +4,7 @@ import type {
   TimesheetCreateRequest,
   TimesheetApproveRequest,
   TimesheetRejectRequest,
+  TimesheetFilterParams,
   TimeEntryResponse,
   TimeEntryCreateRequest,
   TimeEntryUpdateRequest,
@@ -16,6 +17,22 @@ export const timesheetsApi = baseApi.injectEndpoints({
       query: (userId) => `/timesheets/user/${userId}`,
       providesTags: (_result, _error, userId) => [{ type: 'Timesheet', id: userId }],
     }),
+    getFilteredTimesheetsByUser: builder.query<
+      TimesheetResponse[],
+      { userId: string } & TimesheetFilterParams
+    >({
+      query: ({ userId, year, month, week }) => ({
+        url: `/timesheets/user/${userId}`,
+        params: {
+          ...(year !== undefined && { year }),
+          ...(month !== undefined && { month }),
+          ...(week !== undefined && { week }),
+        },
+      }),
+      providesTags: (_result, _error, { userId }) => [
+        { type: 'Timesheet', id: `filtered-${userId}` },
+      ],
+    }),
     getTeamTimesheets: builder.query<TimesheetResponse[], string>({
       query: (managerId) => `/timesheets/manager/${managerId}`,
       providesTags: (_result, _error, managerId) => [{ type: 'Timesheet', id: `team-${managerId}` }],
@@ -26,7 +43,10 @@ export const timesheetsApi = baseApi.injectEndpoints({
     }),
     createTimesheet: builder.mutation<TimesheetResponse, TimesheetCreateRequest>({
       query: (body) => ({ url: '/timesheets', method: 'POST', body }),
-      invalidatesTags: (_result, _error, { userId }) => [{ type: 'Timesheet', id: userId }],
+      invalidatesTags: (_result, _error, { userId }) => [
+        { type: 'Timesheet', id: userId },
+        { type: 'Timesheet', id: `filtered-${userId}` },
+      ],
     }),
     submitTimesheet: builder.mutation<TimesheetResponse, number>({
       query: (id) => ({ url: `/timesheets/${id}/submit`, method: 'POST', body: {} }),
@@ -68,18 +88,21 @@ export const timesheetsApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/time-entries', method: 'POST', body }),
       invalidatesTags: (_result, _error, { timesheetId }) => [
         { type: 'TimeEntry', id: timesheetId },
+        { type: 'Timesheet', id: timesheetId },
       ],
     }),
     updateTimeEntry: builder.mutation<TimeEntryResponse, { id: number; body: TimeEntryUpdateRequest; timesheetId: number }>({
       query: ({ id, body }) => ({ url: `/time-entries/${id}`, method: 'PUT', body }),
       invalidatesTags: (_result, _error, { timesheetId }) => [
         { type: 'TimeEntry', id: timesheetId },
+        { type: 'Timesheet', id: timesheetId },
       ],
     }),
     deleteTimeEntry: builder.mutation<void, { id: number; timesheetId: number }>({
       query: ({ id }) => ({ url: `/time-entries/${id}`, method: 'DELETE' }),
       invalidatesTags: (_result, _error, { timesheetId }) => [
         { type: 'TimeEntry', id: timesheetId },
+        { type: 'Timesheet', id: timesheetId },
       ],
     }),
   }),
@@ -88,6 +111,7 @@ export const timesheetsApi = baseApi.injectEndpoints({
 
 export const {
   useGetTimesheetsByUserQuery,
+  useGetFilteredTimesheetsByUserQuery,
   useGetTeamTimesheetsQuery,
   useGetTimesheetByIdQuery,
   useCreateTimesheetMutation,

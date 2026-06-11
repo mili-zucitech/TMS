@@ -6,6 +6,10 @@ import type {
   LeaveReport,
   ReportFilters,
   KpiSummary,
+  OvertimeSummaryReport,
+  TimesheetComplianceReport,
+  TaskSummaryReport,
+  ApprovalTurnaroundReport,
 } from '@/modules/reports/types/report.types'
 
 function filtersToParams(filters: ReportFilters): Record<string, string | number> {
@@ -27,7 +31,7 @@ export const reportsApi = baseApi.injectEndpoints({
         params: filtersToParams(filters ?? {}),
       }),
     }),
-    getProjectUtilization: builder.query<ProjectUtilizationReport, ReportFilters | void>({
+    getProjectUtilizationReport: builder.query<ProjectUtilizationReport, ReportFilters | void>({
       query: (filters) => ({
         url: '/reports/project-utilization',
         params: filtersToParams(filters ?? {}),
@@ -51,14 +55,42 @@ export const reportsApi = baseApi.injectEndpoints({
         params: filtersToParams(filters ?? {}),
       }),
     }),
+    getOvertimeSummary: builder.query<OvertimeSummaryReport, ReportFilters | void>({
+      query: (filters) => ({
+        url: '/reports/overtime-summary',
+        params: filtersToParams(filters ?? {}),
+      }),
+    }),
+    getTimesheetCompliance: builder.query<TimesheetComplianceReport, ReportFilters | void>({
+      query: (filters) => ({
+        url: '/reports/timesheet-compliance',
+        params: filtersToParams(filters ?? {}),
+      }),
+    }),
+    getTaskSummary: builder.query<TaskSummaryReport, ReportFilters | void>({
+      query: (filters) => ({
+        url: '/reports/task-summary',
+        params: filtersToParams(filters ?? {}),
+      }),
+    }),
+    getApprovalTurnaround: builder.query<ApprovalTurnaroundReport, ReportFilters | void>({
+      query: (filters) => ({
+        url: '/reports/approval-turnaround',
+        params: filtersToParams(filters ?? {}),
+      }),
+    }),
   }),
   overrideExisting: false,
 })
 
 export const {
   useGetEmployeeHoursQuery,
-  useGetProjectUtilizationQuery,
+  useGetProjectUtilizationReportQuery,
   useGetBillableHoursQuery,
   useGetKpiSummaryQuery,
   useGetLeaveReportQuery,
+  useGetOvertimeSummaryQuery,
+  useGetTimesheetComplianceQuery,
+  useGetTaskSummaryQuery,
+  useGetApprovalTurnaroundQuery,
 } = reportsApi

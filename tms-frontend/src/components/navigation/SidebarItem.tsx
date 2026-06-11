@@ -11,10 +11,11 @@ interface SidebarItemProps {
   label: string
   path: string
   collapsed: boolean
+  end?: boolean
   onClick?: () => void
 }
 
-export function SidebarItem({ icon: Icon, label, path, collapsed, onClick }: SidebarItemProps) {
+export function SidebarItem({ icon: Icon, label, path, collapsed, end = true, onClick }: SidebarItemProps) {
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     cn(
       'flex items-center gap-3 rounded-lg text-sm font-medium',
@@ -29,7 +30,7 @@ export function SidebarItem({ icon: Icon, label, path, collapsed, onClick }: Sid
   const inner = (
     <NavLink
       to={path}
-      end
+      end={end}
       onClick={onClick}
       className={linkClass}
     >

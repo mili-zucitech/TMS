@@ -5,6 +5,10 @@ import com.company.tms.audit.service.AuditService;
 import com.company.tms.util.ApiResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,9 +26,9 @@ public class AuditController {
 
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<AuditLogResponse>>> getAllLogs() {
-        List<AuditLogResponse> logs = auditService.getAllLogs();
-        return ResponseEntity.ok(ApiResponse.success(logs));
+    public ResponseEntity<ApiResponse<Page<AuditLogResponse>>> getAllLogs(
+            @PageableDefault(size = 50, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(auditService.getAllLogs(pageable)));
     }
 
     @GetMapping("/user/{userId}")

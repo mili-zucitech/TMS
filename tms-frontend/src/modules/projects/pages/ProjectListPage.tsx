@@ -62,6 +62,7 @@ export default function ProjectListPage() {
   const canCreate = authUser?.roleName === 'ADMIN' || authUser?.roleName === 'HR_MANAGER' || authUser?.roleName === 'MANAGER' || authUser?.roleName === 'DIRECTOR'
   const canModify = authUser?.roleName === 'ADMIN' || authUser?.roleName === 'HR_MANAGER' || authUser?.roleName === 'MANAGER' || authUser?.roleName === 'DIRECTOR'
   const canArchive = authUser?.roleName === 'ADMIN'
+  const canViewUtilization = authUser?.roleName === 'ADMIN' || authUser?.roleName === 'DIRECTOR' || authUser?.roleName === 'MANAGER' || authUser?.roleName === 'HR_MANAGER'
 
   // ── Filter / search state ──────────────────────────────
   const [searchQuery, setSearchQuery] = useState('')
@@ -197,6 +198,7 @@ export default function ProjectListPage() {
           isLoading={isLoading}
           canModify={canModify}
           canArchive={canArchive}
+          canViewUtilization={canViewUtilization}
           onEditProject={setEditProject}
           onArchiveProject={setArchiveTarget}
         />
