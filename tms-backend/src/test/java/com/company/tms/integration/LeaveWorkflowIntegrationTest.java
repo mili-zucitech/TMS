@@ -77,7 +77,7 @@ class LeaveWorkflowIntegrationTest extends AbstractIntegrationTest {
         Role employeeRole = roleRepository.findByName(RoleName.EMPLOYEE).orElseThrow();
         Role managerRole  = roleRepository.findByName(RoleName.MANAGER).orElseThrow();
 
-        userRepository.findByEmail("mgr-lv@tms.com").orElseGet(() ->
+        User manager = userRepository.findByEmail("mgr-lv@tms.com").orElseGet(() ->
                 userRepository.save(User.builder()
                         .employeeId("EMP-LV02")
                         .name("LV Manager")
@@ -97,9 +97,14 @@ class LeaveWorkflowIntegrationTest extends AbstractIntegrationTest {
                         .passwordHash(passwordEncoder.encode("Employee@123"))
                         .designation("Analyst")
                         .joiningDate(LocalDate.now())
+                        .managerId(manager.getId())
                         .status(UserStatus.ACTIVE)
                         .role(employeeRole)
                         .build()));
+        if (employee.getManagerId() == null) {
+            employee.setManagerId(manager.getId());
+            employee = userRepository.save(employee);
+        }
         employeeId = employee.getId();
 
         // Get or create a leave type (V3 migration seeds "Annual Leave" with ID=1)

@@ -37,7 +37,7 @@ public class TimesheetController {
 
     /** Retrieves a timesheet by its ID. */
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetService.isOwnerOfTimesheet(authentication.name, #id) or @timesheetService.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetAccessEvaluator.isOwnerOfTimesheet(authentication.name, #id) or @timesheetAccessEvaluator.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TimesheetResponse>> getTimesheetById(@PathVariable Long id) {
         log.debug("GET /api/v1/timesheets/{}", id);
         return ResponseEntity.ok(ApiResponse.success(timesheetService.getTimesheetById(id), "Timesheet retrieved"));
@@ -60,7 +60,7 @@ public class TimesheetController {
 
     /** Submits a DRAFT or REJECTED timesheet for approval. */
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetService.isOwnerOfTimesheet(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetAccessEvaluator.isOwnerOfTimesheet(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TimesheetResponse>> submitTimesheet(
             @PathVariable Long id,
             @RequestBody(required = false) TimesheetSubmitRequest request) {
@@ -71,7 +71,7 @@ public class TimesheetController {
 
     /** Approves a SUBMITTED timesheet. MANAGER/ADMIN only. */
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR') or @timesheetService.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR') or @timesheetAccessEvaluator.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TimesheetResponse>> approveTimesheet(
             @PathVariable Long id) {
         log.debug("POST /api/v1/timesheets/{}/approve", id);
@@ -81,7 +81,7 @@ public class TimesheetController {
 
     /** Rejects a SUBMITTED timesheet with a mandatory reason. MANAGER/ADMIN only. */
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR') or @timesheetService.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'DIRECTOR') or @timesheetAccessEvaluator.isReportingManagerOfTimesheetOwner(authentication.name, #id)")
     public ResponseEntity<ApiResponse<TimesheetResponse>> rejectTimesheet(
             @PathVariable Long id,
             @Valid @RequestBody TimesheetRejectRequest request) {

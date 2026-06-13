@@ -22,9 +22,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.temporal.TemporalAdjusters;
 import java.util.UUID;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -164,13 +166,16 @@ class TimesheetWorkflowIntegrationTest extends AbstractIntegrationTest {
     void createTimesheet_Employee_Success() throws Exception {
         String token = getToken("emp-ts@tms.com", "Employee@123");
 
+        LocalDate weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)).minusWeeks(1);
+        LocalDate weekEnd = weekStart.plusDays(6);
+
         String body = """
                 {
                   "userId": "%s",
                   "weekStartDate": "%s",
                   "weekEndDate": "%s"
                 }
-                """.formatted(employeeId, LocalDate.now().minusDays(7), LocalDate.now().minusDays(1));
+                """.formatted(employeeId, weekStart, weekEnd);
 
         mockMvc.perform(post("/api/v1/timesheets")
                         .contentType(MediaType.APPLICATION_JSON)

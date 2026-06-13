@@ -78,7 +78,7 @@ public class LeaveController {
      * Approves a PENDING leave request. MANAGER/ADMIN only.
      */
     @PostMapping("/{id}/approve")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or @leaveService.isReportingManagerOfLeave(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or @leaveAccessEvaluator.isReportingManagerOfLeave(authentication.name, #id)")
     public ResponseEntity<ApiResponse<LeaveRequestResponse>> approveLeaveRequest(
             @PathVariable Long id) {
         log.debug("POST /api/v1/leaves/{}/approve", id);
@@ -90,7 +90,7 @@ public class LeaveController {
      * Rejects a PENDING leave request with a mandatory reason. MANAGER/ADMIN only.
      */
     @PostMapping("/{id}/reject")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or @leaveService.isReportingManagerOfLeave(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR_MANAGER', 'DIRECTOR') or @leaveAccessEvaluator.isReportingManagerOfLeave(authentication.name, #id)")
     public ResponseEntity<ApiResponse<LeaveRequestResponse>> rejectLeaveRequest(
             @PathVariable Long id,
             @Valid @RequestBody LeaveRejectRequest request) {
@@ -104,7 +104,7 @@ public class LeaveController {
      * Cancels a PENDING leave request.
      */
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @leaveService.isOwnerOfLeave(authentication.name, #id)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @leaveAccessEvaluator.isOwnerOfLeave(authentication.name, #id)")
     public ResponseEntity<ApiResponse<LeaveRequestResponse>> cancelLeaveRequest(@PathVariable Long id) {
         log.debug("POST /api/v1/leaves/{}/cancel", id);
         return ResponseEntity.ok(ApiResponse.success(

@@ -1,6 +1,10 @@
 package com.company.tms.service;
 
+import com.company.tms.organization.repository.DepartmentRepository;
+import com.company.tms.project.dto.ProjectUtilizationResponse;
+import com.company.tms.project.entity.Project;
 import com.company.tms.project.repository.ProjectRepository;
+import com.company.tms.project.service.ProjectUtilizationService;
 import com.company.tms.report.dto.BillableHoursReport;
 import com.company.tms.report.dto.EmployeeHoursReport;
 import com.company.tms.report.dto.ProjectUtilizationReport;
@@ -46,6 +50,8 @@ class ReportServiceTest {
     @Mock TimeEntryRepository timeEntryRepository;
     @Mock UserRepository userRepository;
     @Mock ProjectRepository projectRepository;
+    @Mock DepartmentRepository departmentRepository;
+    @Mock ProjectUtilizationService projectUtilizationService;
     @InjectMocks ReportService reportService;
 
     private UUID adminUserId;
@@ -113,6 +119,8 @@ class ReportServiceTest {
                 .endTime(LocalTime.of(17, 0))
                 .durationMinutes(480)
                 .build();
+
+        when(departmentRepository.findAll()).thenReturn(List.of());
     }
 
     @Nested
@@ -186,10 +194,18 @@ class ReportServiceTest {
         @Test
         @DisplayName("aggregates hours per project for admin")
         void getProjectUtilizationReport_Admin_AggregatesAllProjects() {
+            Project project = Project.builder().id(10L).name("Test Project").build();
             when(userRepository.findAll()).thenReturn(List.of(employeeUser));
-            when(projectRepository.findAll()).thenReturn(List.of());
+            when(projectRepository.findAll()).thenReturn(List.of(project));
             when(timesheetRepository.findByUserId(employeeUserId)).thenReturn(List.of(sampleTimesheet));
             when(timeEntryRepository.findByTimesheetId(1L)).thenReturn(List.of(sampleTimeEntry));
+            when(projectUtilizationService.getUtilization(10L)).thenReturn(
+                    ProjectUtilizationResponse.builder()
+                            .projectId(10L)
+                            .totalLoggedHours(8.0)
+                            .totalEstimatedHours(40.0)
+                            .utilizationPercentage(20.0)
+                            .build());
 
             ProjectUtilizationReport report = reportService.getProjectUtilizationReport(
                     adminAuth, null, null, null);

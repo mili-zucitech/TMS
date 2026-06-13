@@ -58,7 +58,7 @@ public class TimeEntryController {
 
     /** Returns all time entries belonging to a timesheet. */
     @GetMapping("/timesheet/{timesheetId}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetService.isOwnerOfTimesheet(authentication.name, #timesheetId) or @timesheetService.isReportingManagerOfTimesheetOwner(authentication.name, #timesheetId)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'HR') or @timesheetAccessEvaluator.isOwnerOfTimesheet(authentication.name, #timesheetId) or @timesheetAccessEvaluator.isReportingManagerOfTimesheetOwner(authentication.name, #timesheetId)")
     public ResponseEntity<ApiResponse<List<TimeEntryResponse>>> getEntriesByTimesheet(
             @PathVariable Long timesheetId) {
         log.debug("GET /api/v1/time-entries/timesheet/{}", timesheetId);

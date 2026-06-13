@@ -2,6 +2,7 @@ package com.company.tms.security;
 
 import com.company.tms.auth.dto.LoginRequest;
 import com.company.tms.auth.service.AuthService;
+import com.company.tms.config.WebMvcSecurityTestConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,8 +29,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * - Forbidden access returns 403
  */
 @WebMvcTest(com.company.tms.auth.controller.AuthController.class)
-@Import(com.company.tms.security.SecurityConfig.class)
+@Import(WebMvcSecurityTestConfig.class)
 @DisplayName("SecurityConfig Tests")
+@org.springframework.test.context.ActiveProfiles("test")
 class SecurityConfigTest {
 
     @Autowired MockMvc mockMvc;

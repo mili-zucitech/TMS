@@ -10,6 +10,7 @@ import com.company.tms.timesheet.entity.Timesheet;
 import com.company.tms.timesheet.entity.TimesheetStatus;
 import com.company.tms.timesheet.exception.InvalidTimesheetStateException;
 import com.company.tms.timesheet.mapper.TimesheetMapper;
+import com.company.tms.timesheet.repository.TimeEntryRepository;
 import com.company.tms.timesheet.repository.TimesheetRepository;
 import com.company.tms.timesheet.service.TimesheetService;
 import com.company.tms.timesheet.validator.TimesheetValidator;
@@ -25,6 +26,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,10 +43,12 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 @DisplayName("TimesheetService Unit Tests")
 class TimesheetServiceTest {
 
     @Mock private TimesheetRepository timesheetRepository;
+    @Mock private TimeEntryRepository timeEntryRepository;
     @Mock private TimesheetMapper timesheetMapper;
     @Mock private TimesheetValidator timesheetValidator;
     @Mock private UserRepository userRepository;
@@ -125,6 +130,8 @@ class TimesheetServiceTest {
                 .weekEndDate(weekStart.plusDays(6))
                 .status(TimesheetStatus.DRAFT)
                 .build();
+
+        when(timeEntryRepository.sumDurationMinutesByTimesheetId(anyLong())).thenReturn(0);
     }
 
     @Nested

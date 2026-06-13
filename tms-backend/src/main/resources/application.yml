@@ -3,9 +3,10 @@ spring:
     name: tms-backend
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://localhost:3306/tms?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
-    username: ${SPRING_DATASOURCE_USERNAME:root}
-    password: ${SPRING_DATASOURCE_PASSWORD:root}
+    # TiDB Cloud requires TLS — use sslMode=VERIFY_IDENTITY (not useSSL=false).
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/tms?sslMode=VERIFY_IDENTITY&enabledTLSProtocols=TLSv1.2,TLSv1.3&serverTimezone=UTC&createDatabaseIfNotExist=true}
+    username: ${SPRING_DATASOURCE_USERNAME:2n8ARf4DxRuab3Z.root}
+    password: ${SPRING_DATASOURCE_PASSWORD:Qc46tGD6PmHH03C8}
     driver-class-name: com.mysql.cj.jdbc.Driver
     hikari:
       maximum-pool-size: 10
@@ -70,7 +71,7 @@ jwt:
 #   - ${STAGING_URL:https://staging.example.com}
 cors:
   allowed-origins:
-    - ${FRONTEND_URL:http://localhost:5173}
+    - ${FRONTEND_URL:https://tms-lac.vercel.app}
 
 # Async thread pool
 async:

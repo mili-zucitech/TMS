@@ -46,9 +46,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         return http
+                .csrf(AbstractHttpConfigurer::disable)
                 // Wire the CorsConfigurationSource bean produced by CorsConfig.
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
-                .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
                         // Allow pre-flight OPTIONS requests without authentication.
                         // The actual CORS headers are added by the CorsFilter;

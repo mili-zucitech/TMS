@@ -113,6 +113,7 @@ class ProjectUtilizationServiceTest {
             // 480 + 240 = 720 min = 12 h logged; 40 + 20 = 60 h estimated
             when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
             when(timeEntryRepository.sumDurationMinutesByProjectId(PROJECT_ID)).thenReturn(720L);
+            when(timeEntryRepository.sumDurationMinutesByProjectIdAndTaskLinked(PROJECT_ID)).thenReturn(480L);
             when(taskRepository.findByProjectId(PROJECT_ID)).thenReturn(List.of(completedTask, inProgressTask));
 
             ProjectUtilizationResponse result = service.getUtilization(PROJECT_ID);
@@ -120,7 +121,7 @@ class ProjectUtilizationServiceTest {
             assertThat(result.getProjectId()).isEqualTo(PROJECT_ID);
             assertThat(result.getTotalLoggedHours()).isEqualTo(12.0);
             assertThat(result.getTotalEstimatedHours()).isEqualTo(60.0);
-            assertThat(result.getUtilizationPercentage()).isEqualTo(20.0); // 12/60*100
+            assertThat(result.getUtilizationPercentage()).isEqualTo(13.33); // 8h task-linked / 60h estimated
             assertThat(result.getCompletionPercentage()).isEqualTo(50.0);  // 1/2 tasks
             assertThat(result.getRemainingHours()).isEqualTo(48.0);        // 60-12
             assertThat(result.getHealthStatus()).isEqualTo("GREEN");
@@ -133,7 +134,8 @@ class ProjectUtilizationServiceTest {
         void getUtilization_HighUtilization_HealthIsYellow() {
             // 55 h logged / 60 h estimated = 91.67 %
             when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
-            when(timeEntryRepository.sumDurationMinutesByProjectId(PROJECT_ID)).thenReturn(3300L); // 55 h
+            when(timeEntryRepository.sumDurationMinutesByProjectId(PROJECT_ID)).thenReturn(3300L);
+            when(timeEntryRepository.sumDurationMinutesByProjectIdAndTaskLinked(PROJECT_ID)).thenReturn(3300L);
             when(taskRepository.findByProjectId(PROJECT_ID)).thenReturn(List.of(completedTask, inProgressTask));
 
             ProjectUtilizationResponse result = service.getUtilization(PROJECT_ID);
@@ -146,7 +148,8 @@ class ProjectUtilizationServiceTest {
         void getUtilization_OverUtilized_HealthIsRed() {
             // 70 h logged / 60 h estimated = 116.67 %
             when(projectRepository.findById(PROJECT_ID)).thenReturn(Optional.of(project));
-            when(timeEntryRepository.sumDurationMinutesByProjectId(PROJECT_ID)).thenReturn(4200L); // 70 h
+            when(timeEntryRepository.sumDurationMinutesByProjectId(PROJECT_ID)).thenReturn(4200L);
+            when(timeEntryRepository.sumDurationMinutesByProjectIdAndTaskLinked(PROJECT_ID)).thenReturn(4200L);
             when(taskRepository.findByProjectId(PROJECT_ID)).thenReturn(List.of(completedTask, inProgressTask));
 
             ProjectUtilizationResponse result = service.getUtilization(PROJECT_ID);

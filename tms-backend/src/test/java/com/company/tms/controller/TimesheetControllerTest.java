@@ -19,7 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import com.company.tms.security.SecurityConfig;
+import com.company.tms.config.WebMvcSecurityTestConfig;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,7 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SuppressWarnings("null")
 @WebMvcTest(com.company.tms.timesheet.controller.TimesheetController.class)
-@Import(SecurityConfig.class)
+@Import(WebMvcSecurityTestConfig.class)
 @DisplayName("TimesheetController Tests")
 class TimesheetControllerTest {
 
@@ -165,10 +165,11 @@ class TimesheetControllerTest {
     class SubmitTimesheet {
 
         @Test
-        @WithMockUser
+        @WithMockUser(roles = {"ADMIN"})
         @DisplayName("submit transitions timesheet to SUBMITTED")
         void submitTimesheet_Success_Returns200() throws Exception {
-            when(timesheetService.submitTimesheet(eq(1L), any(com.company.tms.timesheet.dto.TimesheetSubmitRequest.class))).thenReturn(submittedResponse);
+            when(timesheetService.submitTimesheet(eq(1L), nullable(com.company.tms.timesheet.dto.TimesheetSubmitRequest.class)))
+                    .thenReturn(submittedResponse);
 
             mockMvc.perform(post("/api/v1/timesheets/{id}/submit", 1L))
                     .andExpect(status().isOk())
@@ -177,10 +178,10 @@ class TimesheetControllerTest {
         }
 
         @Test
-        @WithMockUser
+        @WithMockUser(roles = {"ADMIN"})
         @DisplayName("submitting already-approved timesheet returns 422")
         void submitTimesheet_InvalidState_Returns422() throws Exception {
-            when(timesheetService.submitTimesheet(eq(3L), any(com.company.tms.timesheet.dto.TimesheetSubmitRequest.class)))
+            when(timesheetService.submitTimesheet(eq(3L), nullable(com.company.tms.timesheet.dto.TimesheetSubmitRequest.class)))
                     .thenThrow(new InvalidTimesheetStateException("Cannot submit APPROVED timesheet"));
 
             mockMvc.perform(post("/api/v1/timesheets/{id}/submit", 3L))
