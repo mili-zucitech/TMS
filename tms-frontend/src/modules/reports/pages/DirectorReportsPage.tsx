@@ -17,7 +17,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { cn } from '@/utils/cn'
 import { ReportCard } from '../components/ReportCard'
 import { ReportFilters } from '../components/ReportFilters'
 import { ReportTable, type Column } from '../components/ReportTable'
@@ -28,7 +27,6 @@ import { useDirectorReports } from '../hooks/useReports'
 import type {
   ProjectUtilizationEntry,
   DepartmentProductivityEntry,
-  OvertimeSummaryEntry,
   TimesheetComplianceEntry,
   ApprovalTurnaroundEntry,
 } from '../types/report.types'
@@ -73,6 +71,15 @@ const complianceExportCols: ExportColumn[] = [
   { key: 'rejected',         label: 'Rejected' },
   { key: 'draft',            label: 'Draft' },
   { key: 'compliancePercent',label: 'Compliance %' },
+]
+
+const overtimeExportCols: ExportColumn[] = [
+  { key: 'employeeName',   label: 'Employee' },
+  { key: 'department',     label: 'Department' },
+  { key: 'weekStartDate',  label: 'Week' },
+  { key: 'totalHours',     label: 'Total Hours (h)' },
+  { key: 'overtimeHours',  label: 'Overtime Hours (h)' },
+  { key: 'overtimeReason', label: 'Reason' },
 ]
 
 // ── Tab definitions ───────────────────────────────────────────────────────────

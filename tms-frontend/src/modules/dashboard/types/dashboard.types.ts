@@ -20,6 +20,7 @@ export interface TimesheetResponse {
   approvedAt: string | null
   approvedBy: string | null
   rejectionReason: string | null
+  overtimeReason: string | null
   createdAt: string
   updatedAt: string
   totalMinutes: number

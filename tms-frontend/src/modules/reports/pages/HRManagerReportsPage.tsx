@@ -131,44 +131,7 @@ export default function HRManagerReportsPage() {
 
   const { hours, leave, dept, overtime, compliance, isLoading, error, applyFilters, refresh } = useHRReports()
 
-  const allSections = useMemo<ExportSection[]>(() => [
-    {
-      title: 'Work Hours', data: hours.data?.entries ?? [], columns: workHoursExportCols,
-      charts: [
-        { title: 'Top Employee Hours',  type: 'bar' as const, data: empHoursBar,          valueLabel: 'Hours (h)' },
-        { title: 'Weekly Hours Trend',  type: 'line' as const, data: attendanceTrendLine, valueLabel: 'Total Hours' },
-      ],
-    },
-    {
-      title: 'Leave', data: leave.data?.entries ?? [], columns: leaveExportCols,
-      charts: [
-        { title: 'Leave Days by Type',        type: 'bar' as const, data: leaveDistBar,    valueLabel: 'Days' },
-      ],
-    },
-    {
-      title: 'Department Overview', data: dept.data ?? [], columns: deptExportCols,
-      charts: [
-        { title: 'Hours by Department',       type: 'bar' as const, data: deptHoursBar,    valueLabel: 'Hours (h)' } as ExportChartData,
-        { title: 'Utilization by Department', type: 'bar' as const, data: deptUtilBar,     valueLabel: 'Utilization %' } as ExportChartData,
-        { title: 'Headcount by Department',   type: 'pie' as const, data: empPerDeptPie },
-      ],
-    },
-    {
-      title: 'Overtime', data: overtime.data?.entries ?? [], columns: overtimeExportCols,
-      charts: [
-        { title: 'Overtime Hours per Employee', type: 'bar' as const, data: (overtime.data?.entries ?? []).map((e) => ({ name: e.employeeName, value: e.overtimeHours })), valueLabel: 'Overtime Hours (h)' } as ExportChartData,
-      ],
-    },
-    {
-      title: 'Timesheet Compliance', data: compliance.data?.entries ?? [], columns: complianceExportCols,
-      charts: [
-        { title: 'Compliance % per Employee', type: 'bar' as const, data: (compliance.data?.entries ?? []).map((e) => ({ name: e.employeeName, value: e.compliancePercent })), valueLabel: 'Compliance %' } as ExportChartData,
-      ],
-    },
-  ], [hours.data, leave.data, dept.data, overtime.data, compliance.data,
-      empHoursBar, attendanceTrendLine, leaveDistBar, deptHoursBar, deptUtilBar, empPerDeptPie])
-
-  // ── Chart data ────────────────────────────────────────────────────────────
+  // ── Chart data (must be defined before allSections) ──────────────────────
   const empPerDeptPie = useMemo(() => {
     if (!dept.data) return []
     return dept.data.map((d) => ({ name: d.departmentName, value: d.employeeCount }))
@@ -221,6 +184,43 @@ export default function HRManagerReportsPage() {
       .map((d) => ({ name: d.departmentName, value: d.utilizationPercent }))
       .sort((a, b) => b.value - a.value)
   }, [dept.data])
+
+  const allSections = useMemo<ExportSection[]>(() => [
+    {
+      title: 'Work Hours', data: hours.data?.entries ?? [], columns: workHoursExportCols,
+      charts: [
+        { title: 'Top Employee Hours',  type: 'bar' as const, data: empHoursBar,          valueLabel: 'Hours (h)' },
+        { title: 'Weekly Hours Trend',  type: 'line' as const, data: attendanceTrendLine, valueLabel: 'Total Hours' },
+      ],
+    },
+    {
+      title: 'Leave', data: leave.data?.entries ?? [], columns: leaveExportCols,
+      charts: [
+        { title: 'Leave Days by Type',        type: 'bar' as const, data: leaveDistBar,    valueLabel: 'Days' },
+      ],
+    },
+    {
+      title: 'Department Overview', data: dept.data ?? [], columns: deptExportCols,
+      charts: [
+        { title: 'Hours by Department',       type: 'bar' as const, data: deptHoursBar,    valueLabel: 'Hours (h)' } as ExportChartData,
+        { title: 'Utilization by Department', type: 'bar' as const, data: deptUtilBar,     valueLabel: 'Utilization %' } as ExportChartData,
+        { title: 'Headcount by Department',   type: 'pie' as const, data: empPerDeptPie },
+      ],
+    },
+    {
+      title: 'Overtime', data: overtime.data?.entries ?? [], columns: overtimeExportCols,
+      charts: [
+        { title: 'Overtime Hours per Employee', type: 'bar' as const, data: (overtime.data?.entries ?? []).map((e) => ({ name: e.employeeName, value: e.overtimeHours })), valueLabel: 'Overtime Hours (h)' } as ExportChartData,
+      ],
+    },
+    {
+      title: 'Timesheet Compliance', data: compliance.data?.entries ?? [], columns: complianceExportCols,
+      charts: [
+        { title: 'Compliance % per Employee', type: 'bar' as const, data: (compliance.data?.entries ?? []).map((e) => ({ name: e.employeeName, value: e.compliancePercent })), valueLabel: 'Compliance %' } as ExportChartData,
+      ],
+    },
+  ], [hours.data, leave.data, dept.data, overtime.data, compliance.data,
+      empHoursBar, attendanceTrendLine, leaveDistBar, deptHoursBar, deptUtilBar, empPerDeptPie])
 
   return (
     <div className="space-y-6 px-4 py-5 sm:px-6">

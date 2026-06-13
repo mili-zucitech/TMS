@@ -223,7 +223,6 @@ export function ManagerDashboardPage() {
     teamMembers,
     teamTimesheets,
     pendingLeaves,
-    allProjects,
     isLoading,
     error,
   } = useManagerDashboard(managerId)
@@ -267,7 +266,7 @@ export function ManagerDashboardPage() {
   const currentWeekRows = useMemo(
     () =>
       teamTimesheetsData
-        .filter((ts) => ts.weekStartDate === currentWeekStart)
+        .filter((ts): ts is TimesheetResponse => ts !== null && ts.weekStartDate === currentWeekStart)
         .map((ts) => {
           const user = teamMembers.find((m) => m.id === ts.userId)
           return user ? { user, timesheet: ts } : null
@@ -279,8 +278,12 @@ export function ManagerDashboardPage() {
   const overtimeRows = useMemo(
     () =>
       currentWeekRows
-        .filter((r) => (r.timesheet.totalMinutes ?? 0) > WEEKLY_HOURS_TARGET * 60)
-        .sort((a, b) => (b.timesheet.totalMinutes ?? 0) - (a.timesheet.totalMinutes ?? 0)),
+        .filter((r) => r.timesheet && (r.timesheet.totalMinutes ?? 0) > WEEKLY_HOURS_TARGET * 60)
+        .sort((a, b) => {
+          const aMinutes = a.timesheet?.totalMinutes ?? 0
+          const bMinutes = b.timesheet?.totalMinutes ?? 0
+          return bMinutes - aMinutes
+        }),
     [currentWeekRows],
   )
 

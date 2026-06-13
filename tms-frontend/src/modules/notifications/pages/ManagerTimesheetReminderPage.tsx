@@ -9,7 +9,6 @@ import {
   SendHorizonal,
   RefreshCw,
   Info,
-  ChevronDown,
   XCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'

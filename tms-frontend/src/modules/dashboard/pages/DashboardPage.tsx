@@ -1,4 +1,3 @@
-import { lazy, Suspense } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { EmployeeDashboardPage } from './EmployeeDashboardPage'
 import { ManagerDashboardPage } from './ManagerDashboardPage'
