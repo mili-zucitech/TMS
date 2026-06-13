@@ -3,11 +3,11 @@ spring:
     name: tms-backend
 
   datasource:
-    # TiDB Cloud requires TLS — use sslMode=VERIFY_IDENTITY (not useSSL=false).
-    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/tms?sslMode=VERIFY_IDENTITY&enabledTLSProtocols=TLSv1.2,TLSv1.3&serverTimezone=UTC&createDatabaseIfNotExist=true}
-    username: ${SPRING_DATASOURCE_USERNAME:2n8ARf4DxRuab3Z.root}
-    password: ${SPRING_DATASOURCE_PASSWORD:Qc46tGD6PmHH03C8}
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
     hikari:
       maximum-pool-size: 10
       minimum-idle: 5
@@ -19,11 +19,11 @@ spring:
     hibernate:
       ddl-auto: update
     show-sql: false
+    open-in-view: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: false
-    open-in-view: false
 
   flyway:
     enabled: true
@@ -32,15 +32,11 @@ spring:
     out-of-order: true
     repair-on-migrate: true
 
-  # Mail Configuration
-  # MAIL_USERNAME and MAIL_PASSWORD are REQUIRED — the app will refuse to start if either is missing or empty.
-  # For Gmail: MAIL_PASSWORD must be a 16-character App Password (Google Account → Security → App Passwords).
-  # NEVER hardcode credentials here; always supply them via environment variables or a secrets manager.
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
     port: ${SPRING_MAIL_PORT:587}
-    username: ${SPRING_MAIL_USERNAME:milisrivastava.zucitech@gmail.com}            # Set via env var for production
-    password: ${SPRING_MAIL_PASSWORD:tnlg uznn cbls pbwl}            # Set via env var for production (App Password for Gmail)
+    username: ${SPRING_MAIL_USERNAME}
+    password: ${SPRING_MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -48,7 +44,6 @@ spring:
           starttls:
             enable: true
             required: true
-          # Connection / read / write timeouts (ms) — prevents silent hangs when SMTP is unreachable
           connectiontimeout: 5000
           timeout: 5000
           writetimeout: 5000
@@ -56,34 +51,10 @@ spring:
 server:
   port: ${PORT:8080}
 
-# JWT Configuration
-# WARNING: Replace jwt.secret with a securely generated Base64-encoded key before deploying to production.
-# Generate with: openssl rand -base64 64
 jwt:
-  secret: ${JWT_SECRET:dG1zLWp3dC1zZWNyZXQta2V5LXZlcnktc2VjdXJlLW1pbi0zMi1jaGFycw==}
-  expiration: 86400000  # 24 hours in milliseconds
+  secret: ${JWT_SECRET}
+  expiration: 86400000
 
-# CORS Configuration
-# cors.allowed-origins is populated from the FRONTEND_URL environment variable.
-# Falls back to http://localhost:5173 when FRONTEND_URL is not set (local dev).
-# Do NOT use a wildcard "*" here — allowCredentials=true requires explicit origins.
-# For multiple origins add additional list items using separate env vars, e.g.:
-#   - ${STAGING_URL:https://staging.example.com}
 cors:
   allowed-origins:
-    - ${FRONTEND_URL:https://tms-lac.vercel.app}
-
-# Async thread pool
-async:
-  core-pool-size: 5
-  max-pool-size: 20
-  queue-capacity: 500
-
-logging:
-  level:
-    com.company.tms: INFO
-    org.springframework.security: WARN
-    # ---- Mail debugging — reveals SMTP handshake details without exposing passwords ----
-    org.springframework.mail: DEBUG
-    com.sun.mail: DEBUG
-
+    - ${FRONTEND_URL}
