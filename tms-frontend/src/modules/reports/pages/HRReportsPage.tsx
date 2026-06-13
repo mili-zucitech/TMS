@@ -14,13 +14,12 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import { cn } from '@/utils/cn'
 import { ReportCard } from '../components/ReportCard'
 import { ReportFilters } from '../components/ReportFilters'
 import { ReportTable, statusBadge, type Column } from '../components/ReportTable'
 import { ReportBarChart, ReportPieChart, ReportLineChart } from '../components/ReportCharts'
 import { TrendInsights } from '../components/TrendInsights'
-import { ExportButtons, type ExportColumn, type ExportSection, type ExportChartData } from '../components/ExportButtons'
+import { ExportButtons, type ExportColumn, type ExportSection } from '../components/ExportButtons'
 import { useHRReports } from '../hooks/useReports'
 import type {
   LeaveReportEntry,
@@ -133,30 +132,6 @@ export default function HRReportsPage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
   const { hours, leave, dept, overtime, compliance, isLoading, error, applyFilters, refresh } = useHRReports()
 
-  const exportData = useMemo(() => {
-    if (activeTab === 'leave')       return leave.data?.entries ?? []
-    if (activeTab === 'departments') return dept.data ?? []
-    if (activeTab === 'overtime')    return overtime.data?.entries ?? []
-    if (activeTab === 'compliance')  return compliance.data?.entries ?? []
-    return hours.data?.entries ?? []
-  }, [activeTab, hours.data, leave.data, dept.data, overtime.data, compliance.data])
-
-  const exportColumns = useMemo(() => {
-    if (activeTab === 'leave')       return leaveExportCols
-    if (activeTab === 'departments') return deptExportCols
-    if (activeTab === 'overtime')    return overtimeExportCols
-    if (activeTab === 'compliance')  return complianceExportCols
-    return workHoursExportCols
-  }, [activeTab])
-
-  const exportReportTitle = useMemo(() => {
-    if (activeTab === 'leave')       return 'HR Leave Report'
-    if (activeTab === 'departments') return 'HR Department Productivity Report'
-    if (activeTab === 'overtime')    return 'HR Overtime Analysis Report'
-    if (activeTab === 'compliance')  return 'HR Timesheet Compliance Report'
-    return 'HR Work Hours Report'
-  }, [activeTab])
-
   // ── Chart data derivations ────────────────────────────────────────────────
   const empPerDeptPie = useMemo(() => {
     if (!dept.data) return []
@@ -216,6 +191,44 @@ export default function HRReportsPage() {
     { name: 'Pending',  value: leave.data?.totalPending  ?? 0 },
     { name: 'Rejected', value: leave.data?.totalRejected ?? 0 },
   ].filter((d) => d.value > 0), [leave.data])
+
+  const allSections = useMemo<ExportSection[]>(() => [
+    {
+      title: 'Work Hours', data: hours.data?.entries ?? [], columns: workHoursExportCols,
+      charts: [
+        { title: 'Top Employee Hours', type: 'bar' as const, data: empHoursBar, valueLabel: 'Hours (h)' },
+        { title: 'Weekly Hours Trend', type: 'line' as const, data: attendanceTrendLine, valueLabel: 'Total Hours' },
+      ],
+    },
+    {
+      title: 'Leave', data: leave.data?.entries ?? [], columns: leaveExportCols,
+      charts: [
+        { title: 'Leave Days by Type', type: 'bar' as const, data: leaveDistBar, valueLabel: 'Days' },
+        { title: 'Leave Status Breakdown', type: 'pie' as const, data: leaveStatusPie },
+      ],
+    },
+    {
+      title: 'Department Productivity', data: dept.data ?? [], columns: deptExportCols,
+      charts: [
+        { title: 'Hours by Department', type: 'bar' as const, data: deptHoursBar, valueLabel: 'Hours (h)' },
+        { title: 'Utilization by Department', type: 'bar' as const, data: deptUtilBar, valueLabel: 'Utilization %' },
+        { title: 'Headcount by Department', type: 'pie' as const, data: empPerDeptPie },
+      ],
+    },
+    {
+      title: 'Overtime', data: overtime.data?.entries ?? [], columns: overtimeExportCols,
+      charts: [
+        { title: 'Overtime Hours per Employee', type: 'bar' as const, data: (overtime.data?.entries ?? []).map((e) => ({ name: e.employeeName, value: e.overtimeHours })), valueLabel: 'Overtime Hours (h)' },
+      ],
+    },
+    {
+      title: 'Timesheet Compliance', data: compliance.data?.entries ?? [], columns: complianceExportCols,
+      charts: [
+        { title: 'Compliance % per Employee', type: 'bar' as const, data: (compliance.data?.entries ?? []).map((e) => ({ name: e.employeeName, value: e.compliancePercent })), valueLabel: 'Compliance %' },
+      ],
+    },
+  ], [hours.data, leave.data, dept.data, overtime.data, compliance.data,
+      empHoursBar, attendanceTrendLine, leaveDistBar, deptHoursBar, deptUtilBar, empPerDeptPie, leaveStatusPie])
 
   return (
     <div className="space-y-6 px-4 py-5 sm:px-6">
